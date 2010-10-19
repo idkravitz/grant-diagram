@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Grant diagram manipulation program
+Grant diagram project management tool
 task is located at http://iexperts.ru/files/task2010.rar
 
 This is an entry point for GUI interface on PyQt
