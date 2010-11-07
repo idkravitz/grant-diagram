@@ -22,62 +22,69 @@ pk = lambda t: "{0} primary key".format(t)
 fk = lambda t, table, column="id": "{0} references {1} ({2}) on delete cascade on update cascade".format(t, table, column)
 
 tables = OrderedDict([
-    ("companies",
-        {
-            "id": pk("integer"),
-            "name": "text"
-        }
+    ("companies", OrderedDict(
+        [
+            ("id", pk("integer")),
+            ("name", "text")
+        ])
     ),
-    ("projects",
-        {
-            "id": pk("integer"),
-            "begin_date": "integer not null",
-            "end_date": "integer not null"
-        }
+    ("projects", OrderedDict(
+        [
+            ("id", pk("integer")),
+            ("begin_date", "integer not null"),
+            ("end_date", "integer not null")
+        ])
     ),
-    ("developers",
-        {
-            "full_name": "text",
-            "username": pk("text"),
-            "company_id": fk("integer", "companies"),
-            "password": "text",
-            "is_admin": "integer"
-        }
+    ("developers", OrderedDict(
+        [
+            ("full_name", "text"),
+            ("username", pk("text")),
+            ("company_id", fk("integer", "companies")),
+            ("password", "text"),
+            ("is_admin", "integer")
+        ])
     ),
-    ("tasks",
-        {
-            "id": pk("integer"),
-            "title": "text",
-            "description": "text",
-            "project_id": fk("integer", "projects"),
-            "hours": "integer",
-            "status": "integer"
-        }
+    ("developers_distribution", OrderedDict(
+        [
+            ("developer_username", fk("text", "developers", "username")),
+            ("project_id", fk("integer", "projects")),
+            ("constraint developers_distribution_pk", "primary key(developer_username, project_id)")
+        ])
     ),
-    ("tasks_dependencies",
-        {
-            "task_id": fk("integer", "tasks"),
-            "depended_task_id": fk("integer", "tasks")
-        }
+    ("tasks", OrderedDict(
+        [
+            ("id", pk("integer")),
+            ("title", "text"),
+            ("description", "text"),
+            ("project_id", fk("integer", "projects")),
+            ("hours", "integer"),
+            ("status", "integer")
+        ])
     ),
-    ("contracts",
-        {
-            "number": pk("integer"),
-            "company_id": fk("integer", "companies"),
-            "project_id": fk("integer", "projects"),
-            "date_of_creation": "integer",
-            "status": "integer"
-        }
+    ("tasks_dependencies", OrderedDict(
+        [
+            ("task_id", fk("integer", "tasks")),
+            ("depended_task_id", fk("integer", "tasks"))
+        ])
     ),
-    ("reports",
-        {
-            "id": pk("integer"),
-            "developer_id": fk("integer", "developers", "username"),
-            "task_id": fk("integer", "tasks"),
-            "begin_date": "integer",
-            "end_date": "integer",
-            "description": "text"
-        }
+    ("contracts", OrderedDict(
+        [
+            ("number", pk("integer")),
+            ("company_id", fk("integer", "companies")),
+            ("project_id", fk("integer", "projects")),
+            ("date_of_creation", "integer"),
+            ("status", "integer")
+        ])
+    ),
+    ("reports", OrderedDict(
+        [
+            ("id", pk("integer")),
+            ("developer_id", fk("integer", "developers", "username")),
+            ("task_id", fk("integer", "tasks")),
+            ("begin_date", "integer"),
+            ("end_date", "integer"),
+            ("description", "text")
+        ])
     ),
 ])
 
