@@ -19,6 +19,7 @@ def connect_database(db_name):
     connection = sqlite3.connect(db_name) if os.path.isfile(db_name) else init_database(db_name)
 
 pk = lambda t: "{0} primary key".format(t)
+fk = lambda t, table, column="id": "{0} references {1} ({2}) on delete cascade on update cascade".format(t, table, column)
 
 tables = OrderedDict([
     ("companies",
@@ -34,33 +35,45 @@ tables = OrderedDict([
             "end_date": "integer not null"
         }
     ),
-    ('developers',
+    ("developers",
         {
             "full_name": "text",
             "username": pk("text"),
+            "company_id": fk("integer", "companies"),
             "password": "text",
             "is_admin": "integer"
         }
     ),
-    ('tasks',
+    ("tasks",
         {
             "id": pk("integer"),
             "title": "text",
             "description": "text",
+            "project_id": fk("integer", "projects"),
             "hours": "integer",
             "status": "integer"
         }
     ),
-    ('contracts',
+    ("tasks_dependencies",
+        {
+            "task_id": fk("integer", "tasks"),
+            "depended_task_id": fk("integer", "tasks")
+        }
+    ),
+    ("contracts",
         {
             "number": pk("integer"),
+            "company_id": fk("integer", "companies"),
+            "project_id": fk("integer", "projects"),
             "date_of_creation": "integer",
             "status": "integer"
         }
     ),
-    ('reports',
+    ("reports",
         {
             "id": pk("integer"),
+            "developer_id": fk("integer", "developers", "username"),
+            "task_id": fk("integer", "tasks"),
             "begin_date": "integer",
             "end_date": "integer",
             "description": "text"
