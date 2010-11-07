@@ -48,6 +48,7 @@ tables = OrderedDict([
         [
             ("developer_username", fk("text", "developers", "username")),
             ("project_id", fk("integer", "projects")),
+            ("is_manager", "integer"),
             ("constraint developers_distribution_pk", "primary key(developer_username, project_id)")
         ])
     ),
