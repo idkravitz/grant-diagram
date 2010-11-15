@@ -108,18 +108,18 @@ tables = OrderedDict([
     ),
     ("tasks_dependencies", OrderedDict(
         [
-            ("task_id", fk("integer", "tasks")),
-            ("depended_task_id", fk("integer", "tasks")),
+            ("task_id", nn(fk("integer", "tasks"))),
+            ("depended_task_id", nn(fk("integer", "tasks"))),
             constraint_pk("task_id", "depended_task_id")
         ])
     ),
     ("contracts", OrderedDict(
         [
             ("number", pk("integer")),
-            ("company_id", fk("integer", "companies")),
-            ("project_id", fk("integer", "projects")),
-            ("date_of_creation", "integer"),
-            ("status", "integer"),
+            ("company_id", nn(fk("integer", "companies"))),
+            ("project_id", nn(fk("integer", "projects"))),
+            ("date_of_creation", nn("integer")),
+            ("status", nn("integer")),
             check_date("date_of_creation"),
             check_enum("status", "active", "finished", "delayed")
         ])
@@ -127,7 +127,7 @@ tables = OrderedDict([
     ("reports", OrderedDict(
         [
             ("id", pk("integer")),
-            ("developer_id", fk("integer", "developers", "username")),
+            ("developer_id", nn(fk("integer", "developers", "username"))),
             ("task_id", nn(fk("integer", "tasks"))),
             ("begin_date", nn("integer")),
             ("end_date", nn("integer")),
