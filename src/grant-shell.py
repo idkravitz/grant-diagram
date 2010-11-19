@@ -10,9 +10,11 @@ This is a command-line interface
 
 import sys
 import libdb
+import optparse
 
 def main():
-    connection = libdb.connect_database('test')
+    parser = optparse.OptionParser(usage='grant-shell.py [options]')
+    grant = libdb.Grant(echo=True)
     return 0
 
 if __name__ == '__main__':
