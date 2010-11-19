@@ -22,6 +22,8 @@ def main():
     grant_args = {}
     if options.dbname: grant_args['dbname'] = options.dbname
     grant = libdb.Grant(echo=True, **grant_args)
+    grant.add_company('admin')
+    grant.add_developer('kravitz', 'admin', 'admin', '1234', True)
     return 0
 
 if __name__ == '__main__':

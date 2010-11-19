@@ -31,10 +31,30 @@ class Database(object):
                 self._log(query)
                 connection.execute(query)
             self._log('-- database "{0}" created'.format(dbname))
+            connection.commit()
             return connection
 
         self.echo = echo
         self.connection = connect()
+
+    def insert(self, table, **vals):
+        template = "insert into {0} ({1}) values ({2})"
+        fields = ",".join(field for field in vals)
+        mask = ",".join(['?'] * len(vals))
+        self.connection.execute(template.format(table, fields, mask), tuple(vals.values()))
+        self.connection.commit()
+
+    def select(self, table, fields, where=None, **kwargs):
+        template = "select {1} from {0}"
+        if where: template += " where {2}"
+        query = template.format(table, ",".join(fields), where)
+        print(query)
+        cursor = self.connection.cursor()
+        if 'values' in kwargs:
+            cursor.execute(query, kwargs['values'])
+        else:
+            cursor.execute(query)
+        return cursor
 
     def _log(self, msg):
         if self.echo:
@@ -46,4 +66,11 @@ class Grant(object):
             self.db = kwargs['db']
         else:
             self.db = Database(**kwargs)
+
+    def add_company(self, name):
+        self.db.insert('companies', name=name)
+
+    def add_developer(self, fullname, username, company, password, is_admin):
+        cursor = self.db.select('companies', ('id',), 'name=?', values=(company,))
+        print(cursor.fetchall())
 
