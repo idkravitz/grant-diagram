@@ -1,6 +1,6 @@
 import sqlite3
 import logging
-import os.path
+import os, os.path
 
 from init_tables import tables
 
@@ -15,27 +15,27 @@ class Database(object):
     logger.addHandler(ch)
 
     def __init__(self, echo=False, dbname='test'):
-
-        def connect():
-            self._log('-- connecting {0} database'.format(dbname))
-            connection = sqlite3.connect(dbname) if os.path.isfile(dbname) else init_database()
-            return connection
-
-        def init_database():
-            self._log('-- starting init process for "{0}" database'.format(dbname))
-            connection = sqlite3.connect(dbname)
-            for name, fields in tables.items():
-                query = "create table {0} (\n{1}\n);".format(
-                    name,
-                    ",\n".join(" " * 4 + " ".join(col for col in field if col) for field in fields.items()))
-                self._log(query)
-                connection.execute(query)
-            self._log('-- database "{0}" created'.format(dbname))
-            connection.commit()
-            return connection
-
+        self.dbname = dbname
         self.echo = echo
-        self.connection = connect()
+        self.connection = self._connect()
+
+    def _connect(self):
+        self._log('-- connecting {0} database'.format(self.dbname))
+        connection = sqlite3.connect(self.dbname) if os.path.isfile(self.dbname) else self._init_database()
+        return connection
+
+    def _init_database(self):
+        self._log('-- starting init process for "{0}" database'.format(self.dbname))
+        connection = sqlite3.connect(self.dbname)
+        for name, fields in tables.items():
+            query = "create table {0} (\n{1}\n);".format(
+                name,
+                ",\n".join(" " * 4 + " ".join(col for col in field if col) for field in fields.items()))
+            self._log(query)
+            connection.execute(query)
+        self._log('-- database "{0}" created'.format(self.dbname))
+        connection.commit()
+        return connection
 
     def insert(self, table, **vals):
         template = "insert into {0} ({1}) values ({2})"
@@ -56,6 +56,12 @@ class Database(object):
             cursor.execute(query)
         return cursor
 
+    def clear(self):
+        self.connection.close()
+        if self.dbname != ":memory:":
+            os.unlink(self.dbname)
+        self.connection = self._init_database()
+
     def _log(self, msg):
         if self.echo:
             self.logger.debug(msg)
@@ -74,3 +80,10 @@ class Grant(object):
         cursor = self.db.select('companies', ('id',), 'name=?', values=(company,))
         print(cursor.fetchall())
 
+    def has_admins(self):
+        admins_count = self.db.select('developers', ('count(*)',), 'is_admin=1')
+        return admins_count.fetchone()[0]
+
+    def has_companies(self):
+        companies_count = self.db.select('companies', ('count(*)',))
+        return companies_count.fetchone()[0]
