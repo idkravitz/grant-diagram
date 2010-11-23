@@ -14,7 +14,7 @@ class Database(object):
     ch.setFormatter(logging.Formatter("%(message)s"))
     logger.addHandler(ch)
 
-    def __init__(self, echo=False, dbname='test'):
+    def __init__(self, echo=False, dbname=':memory:'):
         self.dbname = dbname
         self.echo = echo
         self.connection = self._connect()
