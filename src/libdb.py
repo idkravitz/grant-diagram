@@ -48,7 +48,6 @@ class Database(object):
         template = "select {1} from {0}"
         if where: template += " where {2}"
         query = template.format(table, ",".join(fields), where)
-        print(query)
         cursor = self.connection.cursor()
         if 'values' in kwargs:
             cursor.execute(query, kwargs['values'])
@@ -78,7 +77,6 @@ class Grant(object):
 
     def add_developer(self, fullname, username, company, password, is_admin):
         cursor = self.db.select('companies', ('id',), 'name=?', values=(company,))
-        print(cursor.fetchall())
 
     def has_admins(self):
         admins_count = self.db.select('developers', ('count(*)',), 'is_admin=1')
