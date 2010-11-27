@@ -9,9 +9,9 @@ This is a command-line interface
 '''
 
 import sys
-import libdb
 import optparse
 import sys
+import grant_core.libdb as libdb
 
 def parse_options():
     parser = optparse.OptionParser(usage='grant-shell.py [options]')
@@ -44,20 +44,25 @@ class Tokenizer(object):
             self.text = text
             self.value = value
 
-    def __init__(self, stream):
-        self.stream = stream
+    def __init__(self, streams):
+        self.streams = streams
         self.ptr = 0
-        self.buffer = stream.readline()
+        self.buffer = streams[0].readline()
 
     def getch(self, adv=True):
         if not len(self.buffer):
-            raise EmptyStream()
+            if len(self.streams) > 1:
+                self.streams = self.streams[1:]
+                self.buffer = self.streams[0].readline()
+                return self.getch(adv=adv)
+            else:
+                raise EmptyStream()
         if self.ptr < len(self.buffer):
             ch = self.buffer[self.ptr]
             if adv: self.ptr += 1
             return ch
         else:
-            self.buffer = self.stream.readline()
+            self.buffer = self.streams[0].readline()
             self.ptr = 0
             return self.getch(adv=adv)
 
@@ -108,8 +113,8 @@ class Tokenizer(object):
         raise TokenError("unknown token {0}".format(ch))
 
 class Parser(object):
-    def __init__(self, stream):
-        self.tokenizer = Tokenizer(stream)
+    def __init__(self, streams):
+        self.tokenizer = Tokenizer(streams)
 
     def parse_command(self):
         command = self.tokenizer.get_token()
@@ -141,13 +146,14 @@ class Parser(object):
             print(e)
 
 class Interpreter:
-    def __init__(self, filename, grant):
+    def __init__(self, filename=None, grant=None, streams=None):
+        self.streams = streams or []
         if filename == '-':
-            self.stream = sys.stdin
-        else:
-            self.stream = open(filename, 'r')
-        self.grant = grant
-        self.parser = Parser(self.stream)
+            self.streams.append(sys.stdin)
+        elif filename is not None:
+            self.streams.append(open(filename, 'r'))
+        self.grant = grant or libdb.Grant(echo=False)
+        self.parser = Parser(self.streams)
         self.session = None
         if not self.grant.has_admins():
             print("Your database has no admins, use add_company, add_developer to create one")

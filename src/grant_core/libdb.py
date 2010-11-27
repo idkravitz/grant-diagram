@@ -2,7 +2,7 @@ import sqlite3
 import logging
 import os, os.path
 
-from init_tables import tables
+from grant_core.init_tables import tables
 
 # Add logger, connect it with file handler
 
