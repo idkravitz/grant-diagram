@@ -12,6 +12,7 @@ import sys
 import optparse
 import sys
 import grant_core.libdb as libdb
+from grant_core.session import Session
 
 def parse_options():
     parser = optparse.OptionParser(usage='grant-shell.py [options]')
@@ -47,9 +48,12 @@ class Tokenizer(object):
     def __init__(self, streams):
         self.streams = streams
         self.ptr = 0
-        self.buffer = streams[0].readline()
+        self.buffer = None
 
     def getch(self, adv=True):
+        if self.buffer is None:
+            self.buffer = self.streams[0].readline()
+
         if not len(self.buffer):
             if len(self.streams) > 1:
                 self.streams = self.streams[1:]
@@ -105,6 +109,8 @@ class Tokenizer(object):
                 self.ptr -= 1
             except EmptyStream:
                 pass
+            if identifier in ('True', 'False'):
+                return self.Token('bool', identifier, identifier == 'True')
             return self.Token('identifier', identifier, identifier)
         elif ch == ",":
             return self.Token('comma', ',', ',')
@@ -157,24 +163,28 @@ class Interpreter:
         self.session = None
         if not self.grant.has_admins():
             print("Your database has no admins, use add_company, add_developer to create one")
+            self.session = Session(self, is_admin=True)
 
     def run(self):
         for command, args in self.parser.parse_commands():
-            print(command)
-            for arg in args:
-                print("A: {0}".format(arg))
-
-    def interprete(self, line):
-        atoms = line.split(' ')
-        command = atoms[0]
-        if not self.has_admins():
-            self.admin_create_process()
+            if self.session:
+                print (self.session.process_commands(command, args))
+            else:
+                if command != 'login' or len(args) != 2 or any(arg.type != 'string' for arg in args):
+                    print('Use login "username" "password"')
+                else:
+                    if self.grant.user_exists(*args):
+                        self.session = Session(username=args[0], password=args[1])
+                    else:
+                        print('Unknown user or wrong password')
 
 def main():
     (options, args) = parse_options()
     grant_args = {}
     if options.dbname: grant_args['dbname'] = options.dbname
     interpreter = Interpreter(options.file, libdb.Grant(echo=True, **grant_args))
+    #val = interpreter.grant.user_exists('bla', 'bla')
+    #print(val)
     interpreter.run()
     print("\nBye!")
     return 0

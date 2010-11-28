@@ -75,8 +75,15 @@ class Grant(object):
     def add_company(self, name):
         self.db.insert('companies', name=name)
 
-    def add_developer(self, fullname, username, company, password, is_admin):
-        cursor = self.db.select('companies', ('id',), 'name=?', values=(company,))
+    def add_developer(self, username, password, fullname, company, is_admin):
+        if type(company) is str:
+            cursor = self.db.select('companies', ('id',), 'name=?', values=(company,))
+            company = cursor.fetchone()[0]
+        self.db.insert('developers', username=username, password=password, full_name=fullname, company_id=company, is_admin=is_admin)
+
+    def user_exists(self, username, password):
+        cur = self.db.select('developers', ('count(*)',), 'username=? and password=?', values=(username,password))
+        return cur.fetchone()[0] == 1
 
     def has_admins(self):
         admins_count = self.db.select('developers', ('count(*)',), 'is_admin=1')
