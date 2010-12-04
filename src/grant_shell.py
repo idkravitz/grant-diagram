@@ -165,26 +165,28 @@ class Interpreter:
             print("Your database has no admins, use add_company, add_developer to create one")
             self.session = Session(self, is_admin=True)
 
+    def login(self, username, password):
+        if self.grant.user_exists(username, password):
+            self.session = Session(username=username, password=password)
+        else:
+            print('Unknown user or wrong password')
+
     def run(self):
         for command, args in self.parser.parse_commands():
             if self.session:
-                print (self.session.process_commands(command, args))
+                print(self.session.process_commands(command, args))
             else:
-                if command != 'login' or len(args) != 2 or any(arg.type != 'string' for arg in args):
-                    print('Use login "username" "password"')
+                if command == 'login' and len(args) == 2 and all(type(arg) is str for arg in args):
+                    self.login(*args)
                 else:
-                    if self.grant.user_exists(*args):
-                        self.session = Session(username=args[0], password=args[1])
-                    else:
-                        print('Unknown user or wrong password')
+                    print('Use login "username" "password"')
+
 
 def main():
     (options, args) = parse_options()
     grant_args = {}
     if options.dbname: grant_args['dbname'] = options.dbname
     interpreter = Interpreter(options.file, libdb.Grant(echo=True, **grant_args))
-    #val = interpreter.grant.user_exists('bla', 'bla')
-    #print(val)
     interpreter.run()
     print("\nBye!")
     return 0
