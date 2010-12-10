@@ -1,0 +1,7 @@
+Your database has no admins, use add_company, add_developer to create one
+company added
+developer added
+developer added
+Successfully logged out
+<Session (username => "Dev")>
+Unknown command add_developer

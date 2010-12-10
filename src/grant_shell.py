@@ -130,7 +130,7 @@ class Parser(object):
             args = []
             arg_token = self.tokenizer.get_token()
             while arg_token.type != 'semicolon':
-                if arg_token.type not in set({'int', 'string'}):
+                if arg_token.type not in set({'int', 'string', 'bool'}):
                     raise SynError('invalid token in command args')
                 args.append(arg_token.value)
                 arg_token = self.tokenizer.get_token()
@@ -166,10 +166,12 @@ class Interpreter:
             self.session = Session(self, is_admin=True)
 
     def login(self, username, password):
-        if self.grant.user_exists(username, password):
-            self.session = Session(username=username, password=password)
+        is_admin = self.grant.get_user(username, password)
+        if is_admin is not None:
+            self.session = Session(self, username=username, password=password, is_admin=is_admin)
+            return self.session
         else:
-            print('Unknown user or wrong password')
+            return 'Unknown user or wrong password'
 
     def run(self):
         for command, args in self.parser.parse_commands():
@@ -177,9 +179,9 @@ class Interpreter:
                 print(self.session.process_commands(command, args))
             else:
                 if command == 'login' and len(args) == 2 and all(type(arg) is str for arg in args):
-                    self.login(*args)
+                    print(self.login(*args))
                 else:
-                    print('Use login "username" "password"')
+                    print('Use: login "username" "password"')
 
 
 def main():

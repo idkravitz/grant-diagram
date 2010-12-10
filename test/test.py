@@ -29,11 +29,9 @@ def obtain_streams(filename):
         return [tf]
 
 def compare(testname):
-    return os.path.exists(testname + '.ans') and \
-        all(l == k for l, k in zip(open(testname + '.ans', 'r'),
-            open(testname + '.out', 'r')))
+    return os.path.exists(testname + '.ans') and open(testname + '.ans', 'r').read() == open(testname + '.out', 'r').read()
 
-def launch(filename):
+def launch(filename, options):
     streams = obtain_streams(filename)
     basename = os.path.splitext(filename)[0]
     try:
@@ -44,20 +42,33 @@ def launch(filename):
     finally:
         sys.stdout = oldout
         interpreter.grant.db.clear()
+    if options.debug:
+        print(open(basename + ".out", "r").read())
     print('Test {0} {1}'.format('passed' if compare(basename) else 'failed', format(filename)))
 
 def main():
     parser = optparse.OptionParser(usage='test.py [test(s)]')
-    (options, args) = parser.parse_args()
+    boolean_options = {
+        'verbose': 'show successful tests',
+        'debug': 'show tests output (includes --verbose)',
+        'interactive': 'interactively decide what to do with failed tests'
+    }
+    for option, description in boolean_options.items():
+        parser.add_option('-' + option[0], '--' + option, action='store_true', dest=option,
+            default=False, help=description)
+    try:
+        (options, args) = parser.parse_args()
+    except optparse.OptionError as e:
+        return error(e.msg)
     for arg in args:
         if not os.path.exists(arg):
             return error('Path not found: {0}'.format(arg))
         if os.path.isdir(arg):
             for dirpath, dirnames, filenames in os.walk(arg):
                 for test in glob.iglob(os.path.join(dirpath, '*.tst')):
-                    launch(test)
+                    launch(test, options)
         else:
-            launch(arg)
+            launch(arg, options)
 
 
 if __name__ == '__main__':
