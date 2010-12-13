@@ -9,17 +9,19 @@ This is an entry point for GUI interface on PyQt
 """
 
 import sys
-from PyQt4 import QtGui
 
-def main():
-    app = QtGui.QApplication(sys.argv)
+from PyQt4 import QtGui, QtCore
 
-    widget = QtGui.QWidget()
-    widget.resize(250, 150)
-    widget.setWindowTitle('simple')
-    widget.show()
+from designer.mainwindow import Ui_MainWindow
 
-    return app.exec_()
+class Window(QtGui.QMainWindow):
+    def __init__(self):
+        super(Window, self).__init__()
 
-if __name__ == '__main__':
-    sys.exit(main())
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)
+
+app = QtGui.QApplication(sys.argv)
+tooltip = Window()
+tooltip.show()
+sys.exit(app.exec_())
