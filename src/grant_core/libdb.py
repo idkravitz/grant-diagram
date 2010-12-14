@@ -44,8 +44,15 @@ class Database(object):
 
     def select(self, table, fields, where=None, **kwargs):
         template = "select {1} from {0}"
+        if 'joins' in kwargs:
+            fromclause = ""
+            for j in kwargs['joins']:
+                fromclause = " inner join {0} on {1}={2}".format(*j)
+            table += fromclause
+        query = template.format(table, ",".join(fields))
+
         if where: template += " where {2}"
-        query = template.format(table, ",".join(fields), where)
+        self._log(query)
         cursor = self.connection.cursor()
         if 'values' in kwargs:
             cursor.execute(query, kwargs['values'])
@@ -70,9 +77,35 @@ class Grant(object):
         else:
             self.db = Database(**kwargs)
 
+    def get_headers(self, tablename=None, table=None):
+        table = table or Table.tables[tablename]
+        headers = []
+        for f in table.fields:
+            if f.fk:
+                headers += self.get_headers(table=f.fk.table)
+            elif not f.hidden:
+                    headers.append(f.name)
+        return headers
+
+
     def get_table(self, tablename):
+        def extract_fields(table):
+            fields = []
+            joins = []
+            for f in table.fields:
+                if f.fk:
+                    res = extract_fields(f.fk.table)
+                    joins.append((f.fk.table.name, f.fullname(), f.fk.fullname()))
+                    fields += res[0]
+                    joins += res[1]
+                elif not f.hidden:
+                    fields.append("{0}.{1}".format(table.name, f.name))
+            return fields, joins
+
         if tablename in Table.tables:
-            return self.db.select(tablename, ('*',)).fetchall()
+            table = Table.tables[tablename]
+            fields, joins = extract_fields(table)
+            return self.db.select(tablename, fields, joins=joins).fetchall()
 
     def add_company(self, name):
         self.db.insert('companies', name=name)

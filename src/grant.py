@@ -82,6 +82,7 @@ class ViewTableForm(QtGui.QWidget):
         self.ui = Ui_ViewTableForm()
         self.ui.setupUi(self)
 
+        self.setWindowTitle(tablename)
         values = app.grant.get_table(tablename)
 
         rows = len(values)
@@ -95,7 +96,7 @@ class ViewTableForm(QtGui.QWidget):
                 item.setTextAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
                 self.ui.tableWidget.setItem(i, j, item)
 
-        self.ui.tableWidget.setHorizontalHeaderLabels([f.name for f in Table.tables[tablename].fields])
+        self.ui.tableWidget.setHorizontalHeaderLabels(app.grant.get_headers(tablename))
 
 
 class MainWindow(QtGui.QMainWindow):
@@ -140,7 +141,7 @@ class GrantApplication(QtGui.QApplication):
         self.mainwindow.showNormal()
 
     def adjust_database(self, filename):
-        self.grant = Grant(echo=False, dbname=filename)
+        self.grant = Grant(echo=True, dbname=filename)
         self.connect(self, QtCore.SIGNAL('noadmins'), self.mainwindow.addAdminDialogOpen)
         if not self.grant.has_admins():
             self.emit(QtCore.SIGNAL('noadmins'))
@@ -148,7 +149,6 @@ class GrantApplication(QtGui.QApplication):
     def add_new_admin(self, username, password, fullname, company):
         self.grant.add_first_admin(username, password, fullname, company)
         self.session = self.login(username, password)
-        print(self.session)
 
     def login(self, username, password):
         is_admin = self.grant.get_user(username, password)

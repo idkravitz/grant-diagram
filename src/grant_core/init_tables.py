@@ -34,7 +34,7 @@ class Table(object):
 
 
 class Field(object):
-    def __init__(self, name, type, not_null=True, pk=False, fk=None, unique=False):
+    def __init__(self, name, type, not_null=True, pk=False, fk=None, unique=False, hidden=False):
         self.name = name
         self.type = type
         self.not_null = not_null and not pk
@@ -42,6 +42,10 @@ class Field(object):
         self.pk = pk
         self.fk = fk and Table.tables[fk[0]].get_field(fk[1])
         self.constraint = None
+        self.hidden = hidden
+
+    def fullname(self):
+        return self.table.name + "." + self.name
 
     def __str__(self):
         base = "{0} {1}".format(self.name, self.type)
@@ -83,17 +87,17 @@ class FieldEnum(FieldText):
 
 tables = [
     Table("companies",
-        FieldInteger("id", pk=True),
+        FieldInteger("id", pk=True, hidden=True),
         FieldText("name", unique=True)),
     Table("projects",
-        FieldInteger("id", pk=True),
+        FieldInteger("id", pk=True, hidden=True),
         FieldDate("begin_date"),
         FieldDate("end_date")),
     Table("developers",
         FieldText("full_name"),
         FieldText("username", pk=True),
         FieldInteger("company_id", fk=("companies", "id")),
-        FieldText("password"),
+        FieldText("password", hidden=True),
         FieldBool("is_admin")),
     Table("developers_distribution",
         FieldText("developer_username", fk=("developers", "username")),
