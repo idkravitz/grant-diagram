@@ -75,6 +75,10 @@ class Grant(object):
     def add_company(self, name):
         self.db.insert('companies', name=name)
 
+    def add_first_admin(self, username, password, fullname, company):
+        self.add_company(company)
+        self.add_developer(username, password, fullname, company, True)
+
     def get_companies(self):
         return self.db.select('companies', ('*',)).fetchall()
 
