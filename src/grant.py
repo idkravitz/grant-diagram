@@ -14,12 +14,15 @@ import sys
 from PyQt4 import QtGui, QtCore
 
 from grant_core.libdb import Grant
+from grant_core.session import Session
+from grant_core.init_tables import Table
 
 from designer.mainwindow import Ui_MainWindow
 from designer.about_dialog import Ui_AboutDialog
 from designer.login_dialog import Ui_LoginDialog
 from designer.add_admin_dialog import Ui_AddAdminDialog
 from designer.select_database_dialog import Ui_SelectDatabase
+from designer.view_table_widget import Ui_ViewTableForm
 
 CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -60,6 +63,40 @@ class AddAdminDialog(QtGui.QDialog):
 
         self.ui = Ui_AddAdminDialog()
         self.ui.setupUi(self)
+        self.ui.buttonBox.button(QtGui.QDialogButtonBox.Ok).setDisabled(True)
+        self.edits = self.ui.fullNameEdit, self.ui.usernameEdit, self.ui.passwordEdit, self.ui.companyNameEdit
+
+        for edit in self.edits:
+            self.connect(edit, QtCore.SIGNAL('textChanged(const QString&)'), self.emptiness_validator)
+        self.connect(self, QtCore.SIGNAL('accepted()'),
+            lambda: app.add_new_admin(self.ui.usernameEdit.text(), self.ui.passwordEdit.text(),
+                self.ui.fullNameEdit.text(), self.ui.companyNameEdit.text()))
+
+    def emptiness_validator(self, text):
+        self.ui.buttonBox.button(QtGui.QDialogButtonBox.Ok).setDisabled(not all(len(edit.text()) for edit in self.edits))
+
+class ViewTableForm(QtGui.QWidget):
+    def __init__(self, parent, tablename):
+        super(ViewTableForm, self).__init__(parent)
+
+        self.ui = Ui_ViewTableForm()
+        self.ui.setupUi(self)
+
+        values = app.grant.get_table(tablename)
+
+        rows = len(values)
+        if rows:
+            cols = len(values[0])
+            self.ui.tableWidget.setRowCount(rows)
+            self.ui.tableWidget.setColumnCount(cols)
+            for i, r in enumerate(values):
+                for j, v in enumerate(r):
+                    item = QtGui.QTableWidgetItem(str(v))
+                    item.setTextAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
+                    self.ui.tableWidget.setItem(i, j, item)
+
+        self.ui.tableWidget.setHorizontalHeaderLabels([f.name for f in Table.tables[tablename].fields])
+
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self):
@@ -74,9 +111,15 @@ class MainWindow(QtGui.QMainWindow):
 
         self.connect(self.ui.actionAbout, QtCore.SIGNAL('triggered()'), self.about_dialog, QtCore.SLOT('open()'))
         self.connect(self.ui.actionLogin, QtCore.SIGNAL('triggered()'), self.login_dialog, QtCore.SLOT('open()'))
+        self.connect(self.ui.actionCompanies, QtCore.SIGNAL('triggered()'), lambda: self.createTableView('companies'))
         self.connect(self.select_database, QtCore.SIGNAL('rejected()'), self, QtCore.SLOT('close()'))
 
         self.select_database.open()
+
+    def createTableView(self, tablename):
+        table_widget = ViewTableForm(self, tablename)
+        self.ui.mdiArea.addSubWindow(table_widget)
+        table_widget.show()
 
     def center(self):
         screen = QtGui.QDesktopWidget().screenGeometry()
@@ -100,6 +143,19 @@ class GrantApplication(QtGui.QApplication):
         self.connect(self, QtCore.SIGNAL('noadmins'), self.mainwindow.addAdminDialogOpen)
         if not self.grant.has_admins():
             self.emit(QtCore.SIGNAL('noadmins'))
+
+    def add_new_admin(self, username, password, fullname, company):
+        self.grant.add_first_admin(username, password, fullname, company)
+        self.session = self.login(username, password)
+        print(self.session)
+
+    def login(self, username, password):
+        is_admin = self.grant.get_user(username, password)
+        if is_admin is not None:
+            self.session = Session(self, username=username, password=password, is_admin=is_admin)
+            return self.session
+        else:
+            return 'Unknown user or wrong password' # raise exception instead
 
 app = GrantApplication(sys.argv)
 sys.exit(app.exec_())

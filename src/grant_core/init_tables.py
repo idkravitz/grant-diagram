@@ -1,121 +1,127 @@
-from collections import OrderedDict
 __ALL__ = ("tables")
 
-def pk(t):
-    return "{0} primary key".format(t)
+class Table(object):
+    tables = {}
+    def __init__(self, name, *fields, **options):
+        self.name = name
+        self.fields = fields
+        self.constraints = []
+        if "pk" in options:
+            self.pk = [f for f in fields if f.name in options["pk"]]
+            self.constraints.append("primary key ({0})".format(",".join(f.name for f in self.pk)))
+        else:
+            for f in fields:
+                if f.pk:
+                    self.pk = f
+                    break
+        for f in fields:
+            f.table = self
+        self.tables[name] = self
 
-def fk(t, table, column="id"):
-    return "{0} references {1} ({2}) on delete cascade on update cascade".format(t, table, column)
+    def get_field(self, name):
+        for f in self.fields:
+            if f.name == name:
+                return f
+        return None
 
-def nn(t):
-    return "{0} not null".format(t)
+    def __str__(self):
+        base = "create table {0} (\n".format(self.name)
+        fields = [str(f) for f in self.fields]
+        constraints = ["constraint " + f.constraint for f in self.fields if f.constraint is not None]
+        base += ",\n".join(" " * 4 + s for s in fields + constraints + self.constraints)
+        base += "\n);"
+        return base
 
-def unique(t):
-    return "{0} unique".format(t)
 
-def constraint(name="", body=None):
-    left_side = ""
-    if name:
-        left_side = "constraint " + name
-    return (left_side, body)
+class Field(object):
+    def __init__(self, name, type, not_null=True, pk=False, fk=None, unique=False):
+        self.name = name
+        self.type = type
+        self.not_null = not_null and not pk
+        self.unique = unique
+        self.pk = pk
+        self.fk = fk and Table.tables[fk[0]].get_field(fk[1])
+        self.constraint = None
 
-def check_bool(field):
-    return constraint(
-        name=("bool_" + field),
-        body="check ({0} in (0,1))".format(field))
+    def __str__(self):
+        base = "{0} {1}".format(self.name, self.type)
+        if self.pk:
+            base += " primary key"
+        if self.fk:
+            base += " references {0} ({1}) on delete cascade on update cascade".format(
+                self.fk.table.name, self.fk.name)
+        if self.not_null:
+            base += " not null"
+        if self.unique :
+            base += " unique"
+        return base
 
-def date_precendance(before, after):
-    return constraint(
-        name="date_precendace_{0}_and_{1}".format(before, after),
-        body="check ({0} < {1})".format(before, after))
 
-def check_date(field):
-    return constraint(
-        name="date_"+field,
-        body="check ({0} > 0)".format(field))
+class FieldInteger(Field):
+    def __init__(self, name, *args, **kwargs):
+        super(FieldInteger, self).__init__(name, "integer", *args, **kwargs)
 
-def constraint_pk(*fields):
-    return constraint(body="primary key ({0})".format(",".join(fields)))
+class FieldText(Field):
+    def __init__(self, name, *args, **kwargs):
+        super(FieldText, self).__init__(name, "text", *args, **kwargs)
 
-def check_enum(field, *values):
-    return constraint(name="enum_"+field,
-        body="check ({0} in ({1}))".format(field, ",".join('"{0}"'.format(v) for v in values)))
+class FieldDate(FieldInteger):
+    def __init__(self, *args, **kwargs):
+        super(FieldDate, self).__init__(*args, **kwargs)
+        self.constraint = "date_{0} check ({0} > 0)".format(self.name)
 
-tables = OrderedDict([
-    ("companies", OrderedDict(
-        [
-            ("id", pk("integer")),
-            ("name", unique(nn("text")))
-        ])
-    ),
-    ("projects", OrderedDict(
-        [
-            ("id", pk("integer")),
-            ("begin_date", nn("integer")),
-            ("end_date", nn("integer")),
-            date_precendance("begin_date", "end_date"),
-            check_date("begin_date")
-        ])
-    ),
-    ("developers", OrderedDict(
-        [
-            ("full_name", nn("text")),
-            ("username", pk("text")),
-            ("company_id", nn(fk("integer", "companies"))),
-            ("password", nn("text")),
-            ("is_admin", nn("integer")),
-            check_bool("is_admin")
-        ])
-    ),
-    ("developers_distribution", OrderedDict(
-        [
-            ("developer_username", nn(fk("text", "developers", "username"))),
-            ("project_id", nn(fk("integer", "projects"))),
-            ("is_manager", nn("integer")),
-            constraint_pk("developer_username", "project_id"),
-            check_bool("is_manager")
-        ])
-    ),
-    ("tasks", OrderedDict(
-        [
-            ("id", pk("integer")),
-            ("title", nn("text")),
-            ("description", nn("text")),
-            ("project_id", nn(fk("integer", "projects"))),
-            ("hours", nn("integer")),
-            ("status", nn("integer")),
-            check_enum("status", "active", "finished", "delayed")
-        ])
-    ),
-    ("tasks_dependencies", OrderedDict(
-        [
-            ("task_id", nn(fk("integer", "tasks"))),
-            ("depended_task_id", nn(fk("integer", "tasks"))),
-            constraint_pk("task_id", "depended_task_id")
-        ])
-    ),
-    ("contracts", OrderedDict(
-        [
-            ("number", pk("integer")),
-            ("company_id", nn(fk("integer", "companies"))),
-            ("project_id", nn(fk("integer", "projects"))),
-            ("date_of_creation", nn("integer")),
-            ("status", nn("integer")),
-            check_date("date_of_creation"),
-            check_enum("status", "active", "finished", "delayed")
-        ])
-    ),
-    ("reports", OrderedDict(
-        [
-            ("id", pk("integer")),
-            ("developer_id", nn(fk("integer", "developers", "username"))),
-            ("task_id", nn(fk("integer", "tasks"))),
-            ("begin_date", nn("integer")),
-            ("end_date", nn("integer")),
-            ("description", nn("text")),
-            date_precendance("begin_date", "end_date"),
-            check_date("begin_date")
-        ])
-    ),
-])
+class FieldBool(FieldInteger):
+    def __init__(self, *args, **kwargs):
+        super(FieldBool, self).__init__(*args, **kwargs)
+        self.constraint = "bool_{0} check ({0} in (0,1))".format(self.name)
 
+class FieldEnum(FieldText):
+    def __init__(self, name, values, *args, **kwargs):
+        super(FieldEnum, self).__init__(name, *args, **kwargs)
+        self.values = values
+        self.constraint = "enum_{0} check ({0} in ({1}))".format(self.name, ",".join('"{0}"'.format(v) for v in values))
+
+tables = [
+    Table("companies",
+        FieldInteger("id", pk=True),
+        FieldText("name", unique=True)),
+    Table("projects",
+        FieldInteger("id", pk=True),
+        FieldDate("begin_date"),
+        FieldDate("end_date")),
+    Table("developers",
+        FieldText("full_name"),
+        FieldText("username", pk=True),
+        FieldInteger("company_id", fk=("companies", "id")),
+        FieldText("password"),
+        FieldBool("is_admin")),
+    Table("developers_distribution",
+        FieldText("developer_username", fk=("developers", "username")),
+        FieldInteger("project_id", fk=("projects", "id")),
+        FieldBool("is_manager"),
+        pk=("developer_username", "project_id")),
+    Table("tasks",
+        FieldInteger("id", pk=True),
+        FieldText("title"),
+        FieldText("description"),
+        FieldInteger("project_id", fk=("projects", "id")),
+        FieldInteger("hours"),
+        FieldEnum("status", ("active", "finished", "delayed"))),
+    Table("tasks_dependencies",
+        FieldInteger("task_id", fk=("tasks", "id")),
+        FieldInteger("depended_task_id", fk=("tasks", "id")),
+        pk=("task_id", "depended_task_id")),
+    Table("contracts",
+        FieldInteger("number", pk=True),
+        FieldInteger("company_id", fk=("companies", "id")),
+        FieldInteger("project_id", fk=("projects", "id")),
+        FieldDate("date_of_creation"),
+        FieldEnum("status", ("active", "finished", "delayed"))),
+    Table("reports",
+        FieldInteger("id", pk=True),
+        FieldText("developer_username", fk=("developers", "username")),
+        FieldInteger("task_id", fk=("tasks", "id")),
+        FieldDate("begin_date"),
+        FieldDate("end_date"),
+        FieldText("description"))
+]

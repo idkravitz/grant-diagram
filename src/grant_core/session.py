@@ -21,7 +21,6 @@ class Session(object):
         return "Successfully logged out"
 
     def login(self, username, password):
-        print(self.logout())
         return self.application.login(username, password)
 
     def add_developer(self, username, password, fullname, company, is_admin):

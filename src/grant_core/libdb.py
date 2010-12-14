@@ -2,7 +2,7 @@ import sqlite3
 import logging
 import os, os.path
 
-from grant_core.init_tables import tables
+from grant_core.init_tables import tables, Table
 
 # Add logger, connect it with file handler
 
@@ -27,10 +27,8 @@ class Database(object):
     def _init_database(self):
         self._log('-- starting init process for "{0}" database'.format(self.dbname))
         connection = sqlite3.connect(self.dbname)
-        for name, fields in tables.items():
-            query = "create table {0} (\n{1}\n);".format(
-                name,
-                ",\n".join(" " * 4 + " ".join(col for col in field if col) for field in fields.items()))
+        for t in tables:
+            query = str(t)
             self._log(query)
             connection.execute(query)
         self._log('-- database "{0}" created'.format(self.dbname))
@@ -71,6 +69,10 @@ class Grant(object):
             self.db = kwargs['db']
         else:
             self.db = Database(**kwargs)
+
+    def get_table(self, tablename):
+        if tablename in Table.tables:
+            return self.db.select(tablename, ('*',)).fetchall()
 
     def add_company(self, name):
         self.db.insert('companies', name=name)
