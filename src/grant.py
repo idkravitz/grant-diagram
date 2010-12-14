@@ -89,11 +89,11 @@ class ViewTableForm(QtGui.QWidget):
             cols = len(values[0])
             self.ui.tableWidget.setRowCount(rows)
             self.ui.tableWidget.setColumnCount(cols)
-            for i, r in enumerate(values):
-                for j, v in enumerate(r):
-                    item = QtGui.QTableWidgetItem(str(v))
-                    item.setTextAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
-                    self.ui.tableWidget.setItem(i, j, item)
+        for i, r in enumerate(values):
+            for j, v in enumerate(r):
+                item = QtGui.QTableWidgetItem(str(v))
+                item.setTextAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
+                self.ui.tableWidget.setItem(i, j, item)
 
         self.ui.tableWidget.setHorizontalHeaderLabels([f.name for f in Table.tables[tablename].fields])
 
@@ -112,6 +112,7 @@ class MainWindow(QtGui.QMainWindow):
         self.connect(self.ui.actionAbout, QtCore.SIGNAL('triggered()'), self.about_dialog, QtCore.SLOT('open()'))
         self.connect(self.ui.actionLogin, QtCore.SIGNAL('triggered()'), self.login_dialog, QtCore.SLOT('open()'))
         self.connect(self.ui.actionCompanies, QtCore.SIGNAL('triggered()'), lambda: self.createTableView('companies'))
+        self.connect(self.ui.actionDevelopers, QtCore.SIGNAL('triggered()'), lambda: self.createTableView('developers'))
         self.connect(self.select_database, QtCore.SIGNAL('rejected()'), self, QtCore.SLOT('close()'))
 
         self.select_database.open()

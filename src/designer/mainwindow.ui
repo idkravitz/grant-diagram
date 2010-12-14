@@ -71,6 +71,7 @@
      <string>Tables</string>
     </property>
     <addaction name="actionCompanies"/>
+    <addaction name="actionDevelopers"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTables"/>
@@ -101,6 +102,9 @@
    <property name="text">
     <string>About</string>
    </property>
+   <property name="shortcut">
+    <string>F1</string>
+   </property>
   </action>
   <action name="actionTile_subwindows">
    <property name="text">
@@ -118,6 +122,11 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+Shift+C</string>
+   </property>
+  </action>
+  <action name="actionDevelopers">
+   <property name="text">
+    <string>Developers</string>
    </property>
   </action>
  </widget>
