@@ -4,3 +4,4 @@
 *.log
 *.db
 src/designer/*.py
+!src/designer/__init__.py
