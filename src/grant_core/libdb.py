@@ -51,7 +51,7 @@ class Database(object):
             table += fromclause
         query = template.format(table, ",".join(fields))
 
-        if where: template += " where {2}"
+        if where: query += " where {0}".format(where)
         self._log(query)
         cursor = self.connection.cursor()
         if 'values' in kwargs:

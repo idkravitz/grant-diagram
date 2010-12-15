@@ -83,7 +83,7 @@ class ViewTableForm(QtGui.QWidget):
         self.ui.setupUi(self)
 
         self.setWindowTitle(tablename)
-        values = app.grant.get_table(tablename)
+        values = app.session.get_table(tablename)
 
         rows = len(values)
         if rows:
@@ -96,7 +96,7 @@ class ViewTableForm(QtGui.QWidget):
                 item.setTextAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
                 self.ui.tableWidget.setItem(i, j, item)
 
-        self.ui.tableWidget.setHorizontalHeaderLabels(app.grant.get_headers(tablename))
+        self.ui.tableWidget.setHorizontalHeaderLabels(app.session.get_headers(tablename))
 
 
 class MainWindow(QtGui.QMainWindow):

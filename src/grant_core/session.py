@@ -16,6 +16,12 @@ class Session(object):
             return getattr(self, command)(*args)
         return "Unknown command {0}".format(command)
 
+    def get_table(self, tablename):
+        return self.grant.get_table(tablename)
+
+    def get_headers(self, tablename):
+        return self.grant.get_headers(tablename)
+
     def logout(self):
         self.application.session = None
         return "Successfully logged out"
