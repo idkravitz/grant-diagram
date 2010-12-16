@@ -49,9 +49,10 @@ class SelectDatabaseDialog(QtGui.QDialog):
         self.ui.setupUi(self)
         self.ui.lineEdit.setText(os.path.join(CURRENT_PATH, 'new_database.db'))
 
-        self.connect(self.ui.pushButton, QtCore.SIGNAL('clicked()'), self.showDialog)
-        self.connect(self, QtCore.SIGNAL('accepted()'), lambda: app.adjust_database(self.ui.lineEdit.text()))
+        self.ui.pushButton.clicked.connect(self.showDialog)
+        self.accepted.connect(lambda: app.adjust_database(self.ui.lineEdit.text()))
 
+    @QtCore.pyqtSlot()
     def showDialog(self):
         filename = QtGui.QFileDialog.getOpenFileName(self, 'Open database file', CURRENT_PATH)
         if len(filename):
@@ -67,10 +68,12 @@ class AddAdminDialog(QtGui.QDialog):
         self.edits = self.ui.fullNameEdit, self.ui.usernameEdit, self.ui.passwordEdit, self.ui.companyNameEdit
 
         for edit in self.edits:
-            self.connect(edit, QtCore.SIGNAL('textChanged(const QString&)'), self.emptiness_validator)
-        self.connect(self, QtCore.SIGNAL('accepted()'),
-            lambda: app.add_new_admin(self.ui.usernameEdit.text(), self.ui.passwordEdit.text(),
-                self.ui.fullNameEdit.text(), self.ui.companyNameEdit.text()))
+            edit.textChanged.connect(self.emptiness_validator)
+        self.accepted.connect(lambda: app.add_new_admin(
+            self.ui.usernameEdit.text(),
+            self.ui.passwordEdit.text(),
+            self.ui.fullNameEdit.text(),
+            self.ui.companyNameEdit.text()))
 
     def emptiness_validator(self, text):
         self.ui.buttonBox.button(QtGui.QDialogButtonBox.Ok).setDisabled(not all(len(edit.text()) for edit in self.edits))
@@ -110,11 +113,11 @@ class MainWindow(QtGui.QMainWindow):
         self.login_dialog = LoginDialog(self)
         self.select_database = SelectDatabaseDialog(self)
 
-        self.connect(self.ui.actionAbout, QtCore.SIGNAL('triggered()'), self.about_dialog, QtCore.SLOT('open()'))
-        self.connect(self.ui.actionLogin, QtCore.SIGNAL('triggered()'), self.login_dialog, QtCore.SLOT('open()'))
-        self.connect(self.ui.actionCompanies, QtCore.SIGNAL('triggered()'), lambda: self.createTableView('companies'))
-        self.connect(self.ui.actionDevelopers, QtCore.SIGNAL('triggered()'), lambda: self.createTableView('developers'))
-        self.connect(self.select_database, QtCore.SIGNAL('rejected()'), self, QtCore.SLOT('close()'))
+        self.ui.actionAbout.triggered.connect(self.about_dialog.open)
+        self.ui.actionLogin.triggered.connect(self.login_dialog.open)
+        self.ui.actionCompanies.triggered.connect(lambda: self.createTableView('companies'))
+        self.ui.actionDevelopers.triggered.connect(lambda: self.createTableView('developers'))
+        self.select_database.rejected.connect(self.close)
 
         self.select_database.open()
 
@@ -130,11 +133,13 @@ class MainWindow(QtGui.QMainWindow):
 
     def addAdminDialogOpen(self):
         self.add_admin_dialog = AddAdminDialog(self)
+        self.add_admin_dialog.rejected.connect(self.close)
         self.add_admin_dialog.open()
-        self.connect(self.add_admin_dialog, QtCore.SIGNAL('rejected()'), self, QtCore.SLOT('close()'))
 
 
 class GrantApplication(QtGui.QApplication):
+    noadmins = QtCore.pyqtSignal()
+
     def __init__(self, argv):
         super(GrantApplication, self).__init__(argv)
         self.mainwindow = MainWindow()
@@ -142,9 +147,9 @@ class GrantApplication(QtGui.QApplication):
 
     def adjust_database(self, filename):
         self.grant = Grant(echo=True, dbname=filename)
-        self.connect(self, QtCore.SIGNAL('noadmins'), self.mainwindow.addAdminDialogOpen)
+        self.noadmins.connect(self.mainwindow.addAdminDialogOpen)
         if not self.grant.has_admins():
-            self.emit(QtCore.SIGNAL('noadmins'))
+            self.noadmins.emit()
 
     def add_new_admin(self, username, password, fullname, company):
         self.grant.add_first_admin(username, password, fullname, company)
