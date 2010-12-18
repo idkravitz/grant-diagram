@@ -107,7 +107,7 @@ class RecordForm(QtGui.QDialog):
         row = 0
         self.ctrls = []
         for i, f in enumerate(fields):
-            if not f.hidden or f.fk:
+            if not (f.hidden and f.pk):
                 self.place_control(row, f, rec and rec[i])
                 row += 1
         self.gbox.addWidget(self.buttonBox, row, 1, 1, 1)
@@ -136,10 +136,14 @@ class RecordForm(QtGui.QDialog):
     def updateRecord(self):
         values = self._get_values()
         app.session.update_record(self.tablename, values, list(self.pkey))
+        for w in app.mainwindow.ui.mdiArea.subWindowList():
+            w._orig.updateTable()
 
     def addRecord(self):
         values = self._get_values()
         app.session.add_record(self.tablename, values)
+        for w in app.mainwindow.ui.mdiArea.subWindowList():
+            w._orig.updateTable()
 
     def place_control(self, row, field, value=None):
         label = QtGui.QLabel(self)
@@ -194,25 +198,31 @@ class ViewTableForm(QtGui.QWidget):
         self._fillTable()
 
     def _fillTable(self):
-        values = app.session.get_table(self.tablename)
         self.headers = app.session.get_headers(self.tablename)
 
-        self.pkeys = []
+        cols = len(self.headers)
+        self.ui.tableWidget.setColumnCount(cols)
+        self.ui.tableWidget.setHorizontalHeaderLabels([h[0] for h in self.headers])
+        self.updateTable()
+
+        self.ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
+
+    def updateTable(self):
+        self.ui.tableWidget.clearContents()
+        print('yo')
+
+        values = app.session.get_table(self.tablename)
         rows = len(values)
         if rows:
-            cols = len(self.headers)
+            self.pkeys = []
+            pklen = len(values[0]) - self.ui.tableWidget.columnCount()
             self.ui.tableWidget.setRowCount(rows)
-            self.ui.tableWidget.setColumnCount(cols)
-            pklen = len(values[0]) - cols
         for i, r in enumerate(values):
             self.pkeys.append(r[:pklen])
             for j, v in enumerate(r[pklen:]):
                 item = QtGui.QTableWidgetItem(self.headers[j][1].convert(v))
                 item.setTextAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
                 self.ui.tableWidget.setItem(i, j, item)
-
-        self.ui.tableWidget.setHorizontalHeaderLabels([h[0] for h in self.headers])
-        self.ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
 
     @QtCore.pyqtSlot(int, int)
     def editRecord(self, row, col):
@@ -248,8 +258,11 @@ class MainWindow(QtGui.QMainWindow):
 
     def createTableView(self, tablename):
         table_widget = ViewTableForm(self, tablename)
-        self.ui.mdiArea.addSubWindow(table_widget)
-        table_widget.show()
+        sub = QtGui.QMdiSubWindow()
+        sub.setWidget(table_widget)
+        sub._orig = table_widget
+        self.ui.mdiArea.addSubWindow(sub)
+        sub.show()
 
     def center(self):
         screen = QtGui.QDesktopWidget().screenGeometry()

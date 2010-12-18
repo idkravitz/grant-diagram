@@ -106,12 +106,12 @@ class Grant(object):
         return self.db.select(field.fk.table.name, [field.fk.name] + [f.name for f in verboses]).fetchall()
 
     def update_record(self, tablename, values, pk):
-        fields = [f.name for f in Table.tables[tablename].fields if not f.hidden or f.fk]
+        fields = [f.name for f in Table.tables[tablename].fields if not (f.hidden and f.pk)]
         pkey = [p.name for p in Table.tables[tablename].pk]
         return self.db.update(tablename, fields, values, pkey, pk)
 
     def add_record(self, tablename, values):
-        fields = [f.name for f in Table.tables[tablename].fields if not f.hidden or f.fk]
+        fields = [f.name for f in Table.tables[tablename].fields if not (f.hidden and f.pk)]
         pairs = dict(zip(fields, values))
         return self.db.insert(tablename, **pairs)
 
