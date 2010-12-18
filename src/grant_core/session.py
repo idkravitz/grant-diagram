@@ -31,6 +31,9 @@ class Session(object):
     def update_record(self, tablename, values, pk):
         return self.grant.update_record(tablename, values, pk)
 
+    def delete_record(self, tablename, pk):
+        return self.grant.delete_record(tablename, pk)
+
     def add_record(self, tablename, values):
         return self.grant.add_record(tablename, values)
 

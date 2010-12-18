@@ -2,7 +2,7 @@ import sqlite3
 import logging
 import os, os.path
 
-from grant_core.init_tables import tables, Table
+from grant_core.init_tables import tables, triggers, Table
 
 # Add logger, connect it with file handler
 
@@ -31,6 +31,9 @@ class Database(object):
             query = str(t)
             self._log(query)
             connection.execute(query)
+        for trigger in triggers:
+            self._log(trigger)
+            connection.execute(trigger)
         self._log('-- database "{0}" created'.format(self.dbname))
         connection.commit()
         return connection
@@ -68,6 +71,16 @@ class Database(object):
         self._log(query)
         cursor = self.connection.cursor()
         cursor.execute(query, values + pkeyval)
+        self.connection.commit()
+        return cursor
+
+    def delete(self, table, pkey, pkeyval):
+        base = "delete from {0}".format(table)
+        where = " and ".join("{0}=?".format(p) for p in pkey)
+        query = base  + " where " + where
+        self._log(query)
+        cursor = self.connection.cursor()
+        cursor.execute(query, pkeyval)
         self.connection.commit()
         return cursor
 
@@ -114,6 +127,10 @@ class Grant(object):
         fields = [f.name for f in Table.tables[tablename].fields if not (f.hidden and f.pk)]
         pairs = dict(zip(fields, values))
         return self.db.insert(tablename, **pairs)
+
+    def delete_record(self, tablename, pk):
+        pkeys = [p.name for p in Table.tables[tablename].pk]
+        return self.db.delete(tablename, pkeys, pk)
 
     def get_table(self, tablename):
         def extract_fields(table):
@@ -164,7 +181,8 @@ class Grant(object):
 
     def has_admins(self):
         admins_count = self.db.select('developers', ('count(*)',), 'is_admin=1')
-        return admins_count.fetchone()[0]
+        res = admins_count.fetchone()[0]
+        return res
 
     def has_companies(self):
         companies_count = self.db.select('companies', ('count(*)',))

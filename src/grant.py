@@ -137,13 +137,13 @@ class RecordForm(QtGui.QDialog):
         values = self._get_values()
         app.session.update_record(self.tablename, values, list(self.pkey))
         for w in app.mainwindow.ui.mdiArea.subWindowList():
-            w._orig.updateTable()
+            w.widget().updateTable()
 
     def addRecord(self):
         values = self._get_values()
         app.session.add_record(self.tablename, values)
         for w in app.mainwindow.ui.mdiArea.subWindowList():
-            w._orig.updateTable()
+            w.widget().updateTable()
 
     def place_control(self, row, field, value=None):
         label = QtGui.QLabel(self)
@@ -181,21 +181,50 @@ class ViewTableForm(QtGui.QWidget):
         self.ui.setupUi(self)
 
         ui = self.ui
-        ui.toolbar = QtGui.QToolBar('Tools', self)
-        ui.verticalLayout.insertWidget(0, self.ui.toolbar)
-        ui.addRecord = QtGui.QAction('Add', self)
-        ui.addRecord.triggered.connect(self.addRecord)
-        ui.editRecord = QtGui.QAction('Edit', self)
-        ui.editRecord.setDisabled(True)
-        ui.deleteRecord = QtGui.QAction('Delete', self)
-        ui.deleteRecord.setDisabled(True)
-        for action in [ui.addRecord, ui.editRecord, ui.deleteRecord]:
-            ui.toolbar.addAction(action)
+        if app.session.is_admin:
+            ui.toolbar = QtGui.QToolBar('Tools', self)
+            ui.verticalLayout.insertWidget(0, self.ui.toolbar)
+            ui.addRecord = QtGui.QAction('Add', self)
+            ui.addRecord.triggered.connect(self.addRecord)
+            ui.editRecord = QtGui.QAction('Edit', self)
+            ui.editRecord.setDisabled(True)
+            ui.editRecord.triggered.connect(self.editActionTriggered)
+            ui.deleteRecord = QtGui.QAction('Delete', self)
+            ui.deleteRecord.setDisabled(True)
+            ui.deleteRecord.triggered.connect(self.deleteActionTriggered)
+            for action in [ui.addRecord, ui.editRecord, ui.deleteRecord]:
+                ui.toolbar.addAction(action)
+            ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
+            ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
         self.tablename = tablename
 
         self.setWindowTitle(tablename)
 
         self._fillTable()
+
+
+    @QtCore.pyqtSlot()
+    def adjust_actions(self):
+        val = len(self.ui.tableWidget.selectedItems()) == 0
+        self.ui.editRecord.setDisabled(val)
+        self.ui.deleteRecord.setDisabled(val)
+
+    @QtCore.pyqtSlot()
+    def editActionTriggered(self):
+        row = self.ui.tableWidget.currentRow()
+        self.editRecord(row, 0)
+
+    @QtCore.pyqtSlot()
+    def deleteActionTriggered(self):
+        reply = QtGui.QMessageBox.question(self, 'Message',
+            'Are you sure to delete this record ?',
+            QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
+        if reply == QtGui.QMessageBox.Yes:
+            row = self.ui.tableWidget.currentRow()
+            app.session.delete_record(self.tablename, self.pkeys[row])
+            for w in app.mainwindow.ui.mdiArea.subWindowList():
+                w.widget().updateTable()
+
 
     def _fillTable(self):
         self.headers = app.session.get_headers(self.tablename)
@@ -205,18 +234,16 @@ class ViewTableForm(QtGui.QWidget):
         self.ui.tableWidget.setHorizontalHeaderLabels([h[0] for h in self.headers])
         self.updateTable()
 
-        self.ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
 
     def updateTable(self):
         self.ui.tableWidget.clearContents()
-        print('yo')
 
         values = app.session.get_table(self.tablename)
         rows = len(values)
+        self.ui.tableWidget.setRowCount(rows)
         if rows:
             self.pkeys = []
             pklen = len(values[0]) - self.ui.tableWidget.columnCount()
-            self.ui.tableWidget.setRowCount(rows)
         for i, r in enumerate(values):
             self.pkeys.append(r[:pklen])
             for j, v in enumerate(r[pklen:]):
@@ -253,16 +280,17 @@ class MainWindow(QtGui.QMainWindow):
         self.select_database.rejected.connect(self.close)
         self.login_dialog.login.connect(app.login)
 
+        self.statusBarText = QtGui.QLabel()
+        self.statusBar().addPermanentWidget(self.statusBarText)
+        self.showStatusMessage('Not logged in')
+
         self.select_database.open()
         self.set_actions()
 
     def createTableView(self, tablename):
         table_widget = ViewTableForm(self, tablename)
-        sub = QtGui.QMdiSubWindow()
-        sub.setWidget(table_widget)
-        sub._orig = table_widget
-        self.ui.mdiArea.addSubWindow(sub)
-        sub.show()
+        self.ui.mdiArea.addSubWindow(table_widget)
+        table_widget.show()
 
     def center(self):
         screen = QtGui.QDesktopWidget().screenGeometry()
@@ -282,6 +310,9 @@ class MainWindow(QtGui.QMainWindow):
         ]
         for action in actions:
             action.setDisabled(disabled)
+
+    def showStatusMessage(self, text):
+        self.statusBarText.setText(text)
 
 
 class GrantApplication(QtGui.QApplication):
@@ -310,6 +341,7 @@ class GrantApplication(QtGui.QApplication):
         if is_admin is not None:
             self.session = Session(self, username=username, password=password, is_admin=is_admin)
             self.mainwindow.set_actions(False)
+            self.mainwindow.showStatusMessage('Logged as {0}{1}'.format(username, "[admin]" if is_admin else ""))
             return self.session
         else:
             mbox = QtGui.QMessageBox(

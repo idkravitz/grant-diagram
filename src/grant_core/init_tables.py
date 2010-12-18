@@ -1,4 +1,4 @@
-__ALL__ = ("tables")
+__ALL__ = ("tables", "triggers")
 
 class Table(object):
     tables = {}
@@ -61,8 +61,9 @@ class Field(object):
         if self.pk:
             base += " primary key"
         if self.fk:
-            base += " references {0} ({1}) on delete cascade on update cascade".format(
-                self.fk.table.name, self.fk.name)
+            base += " references {0} ({1}) on delete cascade".format(self.fk.table.name, self.fk.name)
+            #base += " references {0} ({1}) on delete cascade on update cascade".format(
+            #    self.fk.table.name, self.fk.name)
         if self.not_null:
             base += " not null"
         if self.unique :
@@ -142,4 +143,31 @@ tables = [
         FieldDate("begin_date"),
         FieldDate("end_date"),
         FieldText("description"))
+]
+
+triggers = [
+"""CREATE TRIGGER [delete_company]
+BEFORE DELETE
+ON [companies]
+FOR EACH ROW
+BEGIN
+    DELETE FROM developers WHERE developers.company_id = old.id;
+    DELETE FROM contracts WHERE contracts.company_id = old.id;
+END""",
+"""CREATE TRIGGER [delete_developer]
+BEFORE DELETE
+ON [developers]
+FOR EACH ROW
+BEGIN
+    DELETE FROM reports WHERE reports.developer_username = old.username;
+    DELETE FROM developers_distribution WHERE developers_distribution.developer_username = old.username;
+END""",
+"""CREATE TRIGGER [delete_task]
+BEFORE DELETE
+ON [tasks]
+FOR EACH ROW
+BEGIN
+    DELETE FROM tasks_dependencies WHERE tasks_dependencies.task_id = old.id OR tasks_dependencies.depended_task_id = old.id;
+    DELETE FROM reports WHERE reports.task_id = old.id;
+END""",
 ]
