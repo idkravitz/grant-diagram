@@ -60,6 +60,17 @@ class Database(object):
             cursor.execute(query)
         return cursor
 
+    def update(self, table, fields, values, pkey, pkeyval):
+        base = "update {0} set ".format(table)
+        set_ = ",".join("{0}=?".format(f) for f in fields)
+        where = " and ".join("{0}=?".format(p) for p in pkey)
+        query = base + set_ + " where " + where
+        self._log(query)
+        cursor = self.connection.cursor()
+        cursor.execute(query, values + pkeyval)
+        self.connection.commit()
+        return cursor
+
     def clear(self):
         self.connection.close()
         if self.dbname != ":memory:":
@@ -84,9 +95,25 @@ class Grant(object):
             if f.fk:
                 headers += self.get_headers(table=f.fk.table)
             elif not f.hidden:
-                    headers.append(f.name)
+                    headers.append((f.name, type(f)))
         return headers
 
+    def get_fields_description(self, tablename):
+        return Table.tables[tablename].fields
+
+    def get_fk_values(self, field):
+        verboses = field.verbose_fields
+        return self.db.select(field.fk.table.name, [field.fk.name] + [f.name for f in verboses]).fetchall()
+
+    def update_record(self, tablename, values, pk):
+        fields = [f.name for f in Table.tables[tablename].fields if not f.hidden or f.fk]
+        pkey = [p.name for p in Table.tables[tablename].pk]
+        return self.db.update(tablename, fields, values, pkey, pk)
+
+    def add_record(self, tablename, values):
+        fields = [f.name for f in Table.tables[tablename].fields if not f.hidden or f.fk]
+        pairs = dict(zip(fields, values))
+        return self.db.insert(tablename, **pairs)
 
     def get_table(self, tablename):
         def extract_fields(table):
@@ -104,8 +131,15 @@ class Grant(object):
 
         if tablename in Table.tables:
             table = Table.tables[tablename]
+            pk = table.pk
+            pkfields = ["{0}.{1}".format(tablename, f.name) for f in pk]
             fields, joins = extract_fields(table)
-            return self.db.select(tablename, fields, joins=joins).fetchall()
+            return self.db.select(tablename, pkfields + fields, joins=joins).fetchall()
+
+    def get_record(self, tablename, pkeys):
+        table = Table.tables[tablename]
+        where_clause = ",".join("{0}=?".format(f.name) for f in table.pk)
+        return self.db.select(tablename, ('*',), where_clause, values=pkeys).fetchone()
 
     def add_company(self, name):
         self.db.insert('companies', name=name)

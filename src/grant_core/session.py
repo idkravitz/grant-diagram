@@ -22,6 +22,23 @@ class Session(object):
     def get_headers(self, tablename):
         return self.grant.get_headers(tablename)
 
+    def get_fields_description(self, tablename):
+        return self.grant.get_fields_description(tablename)
+
+    def get_record(self, tablename, pkeys):
+        return self.grant.get_record(tablename, pkeys)
+
+    def update_record(self, tablename, values, pk):
+        return self.grant.update_record(tablename, values, pk)
+
+    def add_record(self, tablename, values):
+        return self.grant.add_record(tablename, values)
+
+    def get_fk_values(self, field):
+        values = self.grant.get_fk_values(field)
+        result = [(v[0], " ".join(f.convert(k) for f, k in zip(field.verbose_fields, v[1:]))) for v in values]
+        return result
+
     def logout(self):
         self.application.session = None
         return "Successfully logged out"

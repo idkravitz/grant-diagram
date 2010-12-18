@@ -12,7 +12,7 @@ class Table(object):
         else:
             for f in fields:
                 if f.pk:
-                    self.pk = f
+                    self.pk = [f]
                     break
         for f in fields:
             f.table = self
@@ -34,18 +34,27 @@ class Table(object):
 
 
 class Field(object):
-    def __init__(self, name, type, not_null=True, pk=False, fk=None, unique=False, hidden=False):
+    def __init__(self, name, type, not_null=True, pk=False, fk=None, unique=False, hidden=False, verbose_fields=None):
         self.name = name
         self.type = type
         self.not_null = not_null and not pk
         self.unique = unique
         self.pk = pk
         self.fk = fk and Table.tables[fk[0]].get_field(fk[1])
+        if fk:
+            if verbose_fields:
+                self.verbose_fields = [Table.tables[fk[0]].get_field(f) for f in verbose_fields]
+            else:
+                self.verbose_fields = [self.fk]
         self.constraint = None
         self.hidden = hidden
 
     def fullname(self):
         return self.table.name + "." + self.name
+
+    @classmethod
+    def convert(cls, val):
+        return str(val)
 
     def __str__(self):
         base = "{0} {1}".format(self.name, self.type)
@@ -79,6 +88,10 @@ class FieldBool(FieldInteger):
         super(FieldBool, self).__init__(*args, **kwargs)
         self.constraint = "bool_{0} check ({0} in (0,1))".format(self.name)
 
+    @classmethod
+    def convert(cls, val):
+        return ['False', 'True'][val]
+
 class FieldEnum(FieldText):
     def __init__(self, name, values, *args, **kwargs):
         super(FieldEnum, self).__init__(name, *args, **kwargs)
@@ -91,40 +104,41 @@ tables = [
         FieldText("name", unique=True)),
     Table("projects",
         FieldInteger("id", pk=True, hidden=True),
+        FieldText("name"),
         FieldDate("begin_date"),
         FieldDate("end_date")),
     Table("developers",
         FieldText("full_name"),
         FieldText("username", pk=True),
-        FieldInteger("company_id", fk=("companies", "id")),
+        FieldInteger("company_id", fk=("companies", "id"), verbose_fields=('name',)),
         FieldText("password", hidden=True),
         FieldBool("is_admin")),
     Table("developers_distribution",
         FieldText("developer_username", fk=("developers", "username")),
-        FieldInteger("project_id", fk=("projects", "id")),
+        FieldInteger("project_id", fk=("projects", "id"), verbose_fields=('name',)),
         FieldBool("is_manager"),
         pk=("developer_username", "project_id")),
     Table("tasks",
         FieldInteger("id", pk=True),
         FieldText("title"),
         FieldText("description"),
-        FieldInteger("project_id", fk=("projects", "id")),
+        FieldInteger("project_id", fk=("projects", "id"), verbose_fields=('name',)),
         FieldInteger("hours"),
         FieldEnum("status", ("active", "finished", "delayed"))),
     Table("tasks_dependencies",
-        FieldInteger("task_id", fk=("tasks", "id")),
-        FieldInteger("depended_task_id", fk=("tasks", "id")),
+        FieldInteger("task_id", fk=("tasks", "id"), verbose_fields=('title',)),
+        FieldInteger("depended_task_id", fk=("tasks", "id"), verbose_fields=('title',)),
         pk=("task_id", "depended_task_id")),
     Table("contracts",
         FieldInteger("number", pk=True),
-        FieldInteger("company_id", fk=("companies", "id")),
-        FieldInteger("project_id", fk=("projects", "id")),
+        FieldInteger("company_id", fk=("companies", "id"), verbose_fields=('name',)),
+        FieldInteger("project_id", fk=("projects", "id"), verbose_fields=('name',)),
         FieldDate("date_of_creation"),
         FieldEnum("status", ("active", "finished", "delayed"))),
     Table("reports",
         FieldInteger("id", pk=True),
         FieldText("developer_username", fk=("developers", "username")),
-        FieldInteger("task_id", fk=("tasks", "id")),
+        FieldInteger("task_id", fk=("tasks", "id"), verbose_fields=('title',)),
         FieldDate("begin_date"),
         FieldDate("end_date"),
         FieldText("description"))
