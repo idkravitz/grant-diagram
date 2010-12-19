@@ -161,7 +161,9 @@ class RecordForm(QtGui.QDialog):
             if value is not None:
                 ctrl.setChecked(value == 1)
         elif type(field) is FieldDate:
-            pass
+            ctrl = QtGui.QDateTimeEdit(QtCore.QDateTime.currentDateTime(), self)
+            if value is not None:
+                pass
         elif type(field) is FieldEnum:
             pass
         else:
@@ -277,6 +279,7 @@ class MainWindow(QtGui.QMainWindow):
         self.ui.actionLogin.triggered.connect(self.login_dialog.open)
         self.ui.actionCompanies.triggered.connect(lambda: self.createTableView('companies'))
         self.ui.actionDevelopers.triggered.connect(lambda: self.createTableView('developers'))
+        self.ui.actionProjects.triggered.connect(lambda: self.createTableView('projects'))
         self.select_database.rejected.connect(self.close)
         self.login_dialog.login.connect(app.login)
 

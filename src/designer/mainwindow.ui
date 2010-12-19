@@ -72,6 +72,10 @@
     </property>
     <addaction name="actionCompanies"/>
     <addaction name="actionDevelopers"/>
+    <addaction name="actionProjects"/>
+    <addaction name="actionContracts"/>
+    <addaction name="actionTasks"/>
+    <addaction name="actionReports"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTables"/>
@@ -127,6 +131,26 @@
   <action name="actionDevelopers">
    <property name="text">
     <string>Developers</string>
+   </property>
+  </action>
+  <action name="actionProjects">
+   <property name="text">
+    <string>Projects</string>
+   </property>
+  </action>
+  <action name="actionContracts">
+   <property name="text">
+    <string>Contracts</string>
+   </property>
+  </action>
+  <action name="actionTasks">
+   <property name="text">
+    <string>Tasks</string>
+   </property>
+  </action>
+  <action name="actionReports">
+   <property name="text">
+    <string>Reports</string>
    </property>
   </action>
  </widget>

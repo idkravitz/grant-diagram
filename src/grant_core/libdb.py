@@ -2,7 +2,7 @@ import sqlite3
 import logging
 import os, os.path
 
-from grant_core.init_tables import tables, triggers, Table
+from grant_core.init_tables import tables, Table
 
 # Add logger, connect it with file handler
 
@@ -18,6 +18,7 @@ class Database(object):
         self.dbname = dbname
         self.echo = echo
         self.connection = self._connect()
+        self.connection.execute("PRAGMA foreign_keys = ON")
 
     def _connect(self):
         self._log('-- connecting {0} database'.format(self.dbname))
@@ -31,9 +32,6 @@ class Database(object):
             query = str(t)
             self._log(query)
             connection.execute(query)
-        for trigger in triggers:
-            self._log(trigger)
-            connection.execute(trigger)
         self._log('-- database "{0}" created'.format(self.dbname))
         connection.commit()
         return connection
