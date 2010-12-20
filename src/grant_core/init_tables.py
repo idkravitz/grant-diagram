@@ -79,10 +79,10 @@ class FieldText(Field):
     def __init__(self, name, *args, **kwargs):
         super(FieldText, self).__init__(name, "text", *args, **kwargs)
 
-class FieldDate(FieldInteger):
+class FieldDate(FieldText):
     def __init__(self, *args, **kwargs):
         super(FieldDate, self).__init__(*args, **kwargs)
-        self.constraint = "date_{0} check ({0} > 0)".format(self.name)
+        #self.constraint = "date_{0} check ({0} > 0)".format(self.name)
 
 class FieldBool(FieldInteger):
     def __init__(self, *args, **kwargs):
