@@ -113,8 +113,8 @@ class RecordForm(QtGui.QDialog):
         self.gbox.addWidget(self.buttonBox, row, 1, 1, 1)
         self.setLayout(self.gbox)
 
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
+#        self.buttonBox.accepted.connect(self.accept)
+#        self.buttonBox.rejected.connect(self.reject)
 
         if pkey is not None:
             self.accepted.connect(self.updateRecord)
@@ -176,6 +176,14 @@ class RecordForm(QtGui.QDialog):
         self.ctrls.append(ctrl)
         self.gbox.addWidget(ctrl, row, 1, 1, 1)
 
+class CompaniesRecordForm(RecordForm):
+    pass
+
+class DevelopersRecordForm(RecordForm):
+    pass
+
+class ProjectsRecordForm(RecordForm):
+    pass
 
 
 class ViewTableForm(QtGui.QWidget):
@@ -202,6 +210,7 @@ class ViewTableForm(QtGui.QWidget):
             ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
             ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
         self.tablename = tablename
+        self.RecordClass = globals()[tablename.capitalize() + "RecordForm"]
 
         self.setWindowTitle(tablename)
 
@@ -258,11 +267,11 @@ class ViewTableForm(QtGui.QWidget):
 
     @QtCore.pyqtSlot(int, int)
     def editRecord(self, row, col):
-        rec = RecordForm(self, self.tablename, self.pkeys[row])
+        rec = self.RecordClass(self, self.tablename, self.pkeys[row])
         rec.open()
 
     def addRecord(self):
-        rec = RecordForm(self, self.tablename)
+        rec = self.RecordClass(self, self.tablename)
         rec.open()
 
 class MainWindow(QtGui.QMainWindow):
