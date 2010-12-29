@@ -159,12 +159,20 @@ class Grant(object):
     def add_company(self, name):
         self.db.insert('companies', name=name)
 
+    def get_companies(self):
+        return self.db.select('companies', ('*',)).fetchall()
+
+    def check_company_name_is_free(self, name):
+        count = self.db.select('companies', ('count(*)',), 'name=?', values=(name,)).fetchone()
+        return not count[0]
+
+    def check_username_is_free(self, username):
+        count = self.db.select('developers', ('count(*)',), 'username=?', values=(username,)).fetchone()
+        return not count[0]
+
     def add_first_admin(self, username, password, fullname, company):
         self.add_company(company)
         self.add_developer(username, password, fullname, company, True)
-
-    def get_companies(self):
-        return self.db.select('companies', ('*',)).fetchall()
 
     def add_developer(self, username, password, fullname, company, is_admin):
         if type(company) is str:
@@ -177,8 +185,13 @@ class Grant(object):
         res = cur.fetchone()
         return res and res[0]
 
-    def has_admins(self):
-        admins_count = self.db.select('developers', ('count(*)',), 'is_admin=1')
+    def has_admins(self, username=None):
+        where = 'is_admin=1'
+        kwargs = {}
+        if username is not None:
+            where += ' and username!=?'
+            kwargs['values'] = (username,)
+        admins_count = self.db.select('developers', ('count(*)',), where, **kwargs)
         res = admins_count.fetchone()[0]
         return res
 

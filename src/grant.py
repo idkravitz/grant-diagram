@@ -113,13 +113,24 @@ class RecordForm(QtGui.QDialog):
         self.gbox.addWidget(self.buttonBox, row, 1, 1, 1)
         self.setLayout(self.gbox)
 
-#        self.buttonBox.accepted.connect(self.accept)
-#        self.buttonBox.rejected.connect(self.reject)
+        self.buttonBox.accepted.connect(self.handleAccept)
+        self.buttonBox.rejected.connect(self.reject)
 
         if pkey is not None:
             self.accepted.connect(self.updateRecord)
         else:
             self.accepted.connect(self.addRecord)
+
+    def handleAccept(self):
+        self.accept()
+
+    def error(self, text):
+        mbox = QtGui.QMessageBox(
+            QtGui.QMessageBox.Critical,
+            'Error',
+            text,
+            QtGui.QMessageBox.Ok)
+        mbox.exec()
 
     def _get_values(self):
         values = []
@@ -177,14 +188,43 @@ class RecordForm(QtGui.QDialog):
         self.gbox.addWidget(ctrl, row, 1, 1, 1)
 
 class CompaniesRecordForm(RecordForm):
-    pass
+    def __init__(self, *args, **kwargs):
+        super(CompaniesRecordForm, self).__init__(*args, **kwargs)
+        self.name = self.ctrls[0].text()
+
+    def handleAccept(self):
+        name_edit = self.ctrls[0]
+        name = name_edit.text()
+        if not len(name):
+            self.error("Company name cann't be empty")
+        elif (not self.pkey or name != self.name) and not app.grant.check_company_name_is_free(name):
+            self.error("This name is already occupied")
+        else:
+            self.accept()
 
 class DevelopersRecordForm(RecordForm):
-    pass
+    def __init__(self, *args, **kwargs):
+        super(DevelopersRecordForm, self).__init__(*args, **kwargs)
+        if not app.grant.has_companies(): # bug here
+            self.error("There must be at least one project before you can do this")
+            self.close()
+
+    def handleAccept(self):
+        fname = self.ctrls[0].text()
+        username = self.ctrls[1].text()
+        password = self.ctrls[-2].text()
+        is_admin = self.ctrls[-1].isChecked()
+        if any(not(len(f)) for f in (fname, username, password)):
+            self.error("Text fields cann't be empty")
+        elif (not self.pkey or self.pkey[0] != username) and not app.grant.check_username_is_free(username):
+            self.error("User with such username already exists")
+        elif not is_admin and not app.grant.has_admins(self.pkey and self.pkey[0]):
+            self.error("You can't leave database without admins")
+        else:
+            self.accept()
 
 class ProjectsRecordForm(RecordForm):
     pass
-
 
 class ViewTableForm(QtGui.QWidget):
     def __init__(self, parent, tablename):
