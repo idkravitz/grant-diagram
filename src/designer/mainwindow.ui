@@ -71,10 +71,15 @@
      <string>Tables</string>
     </property>
     <addaction name="actionCompanies"/>
-    <addaction name="actionDevelopers"/>
     <addaction name="actionProjects"/>
     <addaction name="actionContracts"/>
+    <addaction name="separator"/>
+    <addaction name="actionDevelopers"/>
+    <addaction name="actionDevelopers_Distribution"/>
+    <addaction name="separator"/>
     <addaction name="actionTasks"/>
+    <addaction name="actionTasks_Dependencies"/>
+    <addaction name="separator"/>
     <addaction name="actionReports"/>
    </widget>
    <addaction name="menuFile"/>
@@ -151,6 +156,16 @@
   <action name="actionReports">
    <property name="text">
     <string>Reports</string>
+   </property>
+  </action>
+  <action name="actionDevelopers_Distribution">
+   <property name="text">
+    <string>Developers Distribution</string>
+   </property>
+  </action>
+  <action name="actionTasks_Dependencies">
+   <property name="text">
+    <string>Tasks Dependencies</string>
    </property>
   </action>
  </widget>

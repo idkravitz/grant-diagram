@@ -101,6 +101,7 @@ class RecordForm(QtGui.QDialog):
         self.gbox = QtGui.QGridLayout(self)
 
         fields = app.session.get_fields_description(tablename)
+        self.rectype = "add" if pkey is None else "update"
         self.pkey = pkey
         self.tablename = tablename
         rec = pkey and app.session.get_record(tablename, pkey)
@@ -141,8 +142,13 @@ class RecordForm(QtGui.QDialog):
                 value = ctrl.isChecked()
             elif type(ctrl) is QtGui.QComboBox:
                 value = ctrl.itemData(ctrl.currentIndex())
+                if value is None:
+                    value = ctrl.currentText()
+                print(value)
             elif type(ctrl) is QtGui.QDateTimeEdit:
                 value = ctrl.dateTime().toString(QtCore.Qt.ISODate)
+            elif type(ctrl) is QtGui.QSpinBox:
+                value = ctrl.value()
             values.append(value)
         return values
 
@@ -160,7 +166,7 @@ class RecordForm(QtGui.QDialog):
 
     def place_control(self, row, field, value=None):
         label = QtGui.QLabel(self)
-        label.setText(field.name)
+        label.setText(field.name if field.fk is None else field.verbose_field.name)
         self.gbox.addWidget(label, row, 0, 1, 1)
         if field.fk:
             ctrl = QtGui.QComboBox(self)
@@ -181,7 +187,16 @@ class RecordForm(QtGui.QDialog):
             ctrl = QtGui.QDateTimeEdit(datetime, self)
             ctrl.setCalendarPopup(True)
         elif type(field) is FieldEnum:
-            pass
+            ctrl = QtGui.QComboBox(self)
+            items = field.values
+            for n, i in enumerate(items):
+                ctrl.addItem(i)
+                if value is not None and value == i:
+                    ctrl.setCurrentIndex(n)
+        elif type(field) is FieldInteger:
+            ctrl = QtGui.QSpinBox(self)
+            if value is not None:
+                ctrl.setValue(value)
         else:
             ctrl = QtGui.QLineEdit(self)
             if value is not None:
@@ -226,6 +241,30 @@ class DevelopersRecordForm(RecordForm):
             self.accept()
 
 class ProjectsRecordForm(RecordForm):
+    def handleAccept(self):
+        prjname = self.ctrls[0].text()
+        datebegin = self.ctrls[1].dateTime()
+        dateend = self.ctrls[2].dateTime()
+        if not len(prjname):
+            self.error("Project name cann't be empty")
+        elif dateend <= datebegin:
+            self.error("Project end date must be greater than begin date")
+        else:
+            self.accept()
+
+class ContractsRecordForm(RecordForm):
+    pass
+
+class TasksRecordForm(RecordForm):
+    pass
+
+class ReportsRecordForm(RecordForm):
+    pass
+
+class Developers_distributionRecordForm(RecordForm):
+    pass
+
+class Tasks_dependenciesRecordForm(RecordForm):
     pass
 
 class ViewTableForm(QtGui.QWidget):
@@ -316,7 +355,27 @@ class ViewTableForm(QtGui.QWidget):
         rec = self.RecordClass(self, self.tablename)
         rec.open()
 
+    def error(self, text):
+        mbox = QtGui.QMessageBox(
+            QtGui.QMessageBox.Critical,
+            'Error',
+            text,
+            QtGui.QMessageBox.Ok)
+        mbox.exec()
+
+class CompaniesViewTableForm(ViewTableForm):
+    @QtCore.pyqtSlot()
+    def deleteActionTriggered(self):
+        row = self.ui.tableWidget.currentRow()
+        if self.pkeys[row][0] == 1:
+            self.error("Cann't delete your company")
+        else:
+            super(CompaniesViewTableForm, self).deleteActionTriggered()
+
 class MainWindow(QtGui.QMainWindow):
+    def tableTrigger(self, tablename):
+        return lambda: self.createTableView(tablename)
+
     def __init__(self):
         global app
         super(MainWindow, self).__init__()
@@ -331,9 +390,14 @@ class MainWindow(QtGui.QMainWindow):
 
         self.ui.actionAbout.triggered.connect(self.about_dialog.open)
         self.ui.actionLogin.triggered.connect(self.login_dialog.open)
-        self.ui.actionCompanies.triggered.connect(lambda: self.createTableView('companies'))
-        self.ui.actionDevelopers.triggered.connect(lambda: self.createTableView('developers'))
-        self.ui.actionProjects.triggered.connect(lambda: self.createTableView('projects'))
+        self.ui.actionCompanies.triggered.connect(self.tableTrigger('companies'))
+        self.ui.actionDevelopers.triggered.connect(self.tableTrigger('developers'))
+        self.ui.actionProjects.triggered.connect(self.tableTrigger('projects'))
+        self.ui.actionContracts.triggered.connect(self.tableTrigger('contracts'))
+        self.ui.actionTasks.triggered.connect(self.tableTrigger('tasks'))
+        self.ui.actionReports.triggered.connect(self.tableTrigger('reports'))
+        self.ui.actionDevelopers_Distribution.triggered.connect(self.tableTrigger('developers_distribution'))
+        self.ui.actionTasks_Dependencies.triggered.connect(self.tableTrigger('tasks_dependencies'))
         self.select_database.rejected.connect(self.close)
         self.login_dialog.login.connect(app.login)
 
@@ -345,7 +409,10 @@ class MainWindow(QtGui.QMainWindow):
         self.set_actions()
 
     def createTableView(self, tablename):
-        table_widget = ViewTableForm(self, tablename)
+        cls = ViewTableForm
+        if tablename == 'companies':
+            cls = CompaniesViewTableForm
+        table_widget = cls(self, tablename)
         self.ui.mdiArea.addSubWindow(table_widget)
         table_widget.show()
 

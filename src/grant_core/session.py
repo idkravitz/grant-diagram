@@ -39,7 +39,8 @@ class Session(object):
 
     def get_fk_values(self, field):
         values = self.grant.get_fk_values(field)
-        result = [(v[0], " ".join(f.convert(k) for f, k in zip(field.verbose_fields, v[1:]))) for v in values]
+        verbose = field.verbose_field
+        result = [(v[0], verbose.convert(v[1])) for v in values]
         return result
 
     def logout(self):

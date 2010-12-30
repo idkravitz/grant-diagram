@@ -48,7 +48,7 @@ class Database(object):
         if 'joins' in kwargs:
             fromclause = ""
             for j in kwargs['joins']:
-                fromclause = " inner join {0} on {1}={2}".format(*j)
+                fromclause += " inner join {0} on {1}={2}".format(*j)
             table += fromclause
         query = template.format(table, ",".join(fields))
 
@@ -113,8 +113,8 @@ class Grant(object):
         return Table.tables[tablename].fields
 
     def get_fk_values(self, field):
-        verboses = field.verbose_fields
-        return self.db.select(field.fk.table.name, [field.fk.name] + [f.name for f in verboses]).fetchall()
+        verbose = field.verbose_field
+        return self.db.select(field.fk.table.name, (field.fk.name, verbose.name)).fetchall()
 
     def update_record(self, tablename, values, pk):
         fields = [f.name for f in Table.tables[tablename].fields if not (f.hidden and f.pk)]

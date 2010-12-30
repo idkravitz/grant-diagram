@@ -35,7 +35,7 @@ class Table(object):
 
 
 class Field(object):
-    def __init__(self, name, type, not_null=True, pk=False, fk=None, unique=False, hidden=False, verbose_fields=None):
+    def __init__(self, name, type, not_null=True, pk=False, fk=None, unique=False, hidden=False, verbose_field=None):
         self.name = name
         self.type = type
         self.not_null = not_null and not pk
@@ -43,10 +43,10 @@ class Field(object):
         self.pk = pk
         self.fk = fk and Table.tables[fk[0]].get_field(fk[1])
         if fk:
-            if verbose_fields:
-                self.verbose_fields = [Table.tables[fk[0]].get_field(f) for f in verbose_fields]
+            if verbose_field:
+                self.verbose_field = Table.tables[fk[0]].get_field(verbose_field)
             else:
-                self.verbose_fields = [self.fk]
+                self.verbose_field = self.fk
         self.constraint = None
         self.hidden = hidden
 
@@ -117,35 +117,35 @@ tables = [
     Table("developers",
         FieldText("full_name"),
         FieldText("username", pk=True),
-        FieldInteger("company_id", fk=("companies", "id"), verbose_fields=('name',)),
+        FieldInteger("company_id", fk=("companies", "id"), verbose_field='name'),
         FieldText("password", hidden=True),
         FieldBool("is_admin")),
     Table("developers_distribution",
         FieldText("developer_username", fk=("developers", "username")),
-        FieldInteger("project_id", fk=("projects", "id"), verbose_fields=('name',)),
+        FieldInteger("project_id", fk=("projects", "id"), verbose_field='name'),
         FieldBool("is_manager"),
         pk=("developer_username", "project_id")),
     Table("tasks",
         FieldInteger("id", pk=True),
         FieldText("title"),
         FieldText("description"),
-        FieldInteger("project_id", fk=("projects", "id"), verbose_fields=('name',)),
+        FieldInteger("project_id", fk=("projects", "id"), verbose_field='name'),
         FieldInteger("hours"),
         FieldEnum("status", ("active", "finished", "delayed"))),
     Table("tasks_dependencies",
-        FieldInteger("task_id", fk=("tasks", "id"), verbose_fields=('title',)),
-        FieldInteger("depended_task_id", fk=("tasks", "id"), verbose_fields=('title',)),
+        FieldInteger("task_id", fk=("tasks", "id"), verbose_field='title'),
+        FieldInteger("depended_task_id", fk=("tasks", "id"), verbose_field='title'),
         pk=("task_id", "depended_task_id")),
     Table("contracts",
-        FieldInteger("number", pk=True),
-        FieldInteger("company_id", fk=("companies", "id"), verbose_fields=('name',)),
-        FieldInteger("project_id", fk=("projects", "id"), verbose_fields=('name',)),
+        FieldInteger("number", pk=True, hidden=True),
+        FieldInteger("company_id", fk=("companies", "id"), verbose_field='name'),
+        FieldInteger("project_id", fk=("projects", "id"), verbose_field='name'),
         FieldDate("date_of_creation"),
         FieldEnum("status", ("active", "finished", "delayed"))),
     Table("reports",
         FieldInteger("id", pk=True),
         FieldText("developer_username", fk=("developers", "username")),
-        FieldInteger("task_id", fk=("tasks", "id"), verbose_fields=('title',)),
+        FieldInteger("task_id", fk=("tasks", "id"), verbose_field='title'),
         FieldDate("begin_date"),
         FieldDate("end_date"),
         FieldText("description"))
