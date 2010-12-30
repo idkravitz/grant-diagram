@@ -1,3 +1,4 @@
+from PyQt4 import QtCore
 __ALL__ = ("tables")
 
 class Table(object):
@@ -83,6 +84,11 @@ class FieldDate(FieldText):
     def __init__(self, *args, **kwargs):
         super(FieldDate, self).__init__(*args, **kwargs)
         #self.constraint = "date_{0} check ({0} > 0)".format(self.name)
+
+    @classmethod
+    def convert(cls, val):
+        dt = QtCore.QDateTime.fromString(val, QtCore.Qt.ISODate)
+        return dt.toString()
 
 class FieldBool(FieldInteger):
     def __init__(self, *args, **kwargs):

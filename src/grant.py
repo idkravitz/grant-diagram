@@ -142,7 +142,7 @@ class RecordForm(QtGui.QDialog):
             elif type(ctrl) is QtGui.QComboBox:
                 value = ctrl.itemData(ctrl.currentIndex())
             elif type(ctrl) is QtGui.QDateTimeEdit:
-                value = ctrl.dateTime().toString()
+                value = ctrl.dateTime().toString(QtCore.Qt.ISODate)
             values.append(value)
         return values
 
@@ -174,10 +174,12 @@ class RecordForm(QtGui.QDialog):
             if value is not None:
                 ctrl.setChecked(value == 1)
         elif type(field) is FieldDate:
-            ctrl = QtGui.QDateTimeEdit(QtCore.QDateTime.currentDateTime(), self)
-            ctrl.setCalendarPopup(True)
             if value is not None:
-                ctrl.setDateTime(QtCore.QDateTime.fromString(value))
+                datetime = QtCore.QDateTime.fromString(value, QtCore.Qt.ISODate)
+            else:
+                datetime = QtCore.QDateTime.currentDateTime()
+            ctrl = QtGui.QDateTimeEdit(datetime, self)
+            ctrl.setCalendarPopup(True)
         elif type(field) is FieldEnum:
             pass
         else:
