@@ -15,7 +15,8 @@ from PyQt4 import QtGui, QtCore
 
 from grant_core.libdb import Grant
 from grant_core.session import Session
-from grant_core.init_tables import Table, FieldInteger, FieldText, FieldBool, FieldDate, FieldEnum
+from grant_core.init_tables import Table, FieldInteger, FieldText, FieldBool,\
+    FieldDate, FieldEnum
 
 from designer.mainwindow import Ui_MainWindow
 from designer.about_dialog import Ui_AboutDialog
@@ -28,15 +29,16 @@ CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 class AboutDialog(QtGui.QDialog):
     def __init__(self, parent):
-        super(AboutDialog, self).__init__(parent)
+        super().__init__(parent)
 
         self.ui = Ui_AboutDialog()
         self.ui.setupUi(self)
 
+
 class LoginDialog(QtGui.QDialog):
     login = QtCore.pyqtSignal(str, str)
     def __init__(self, parent):
-        super(LoginDialog, self).__init__(parent)
+        super().__init__(parent)
 
         self.ui = Ui_LoginDialog()
         self.ui.setupUi(self)
@@ -45,7 +47,8 @@ class LoginDialog(QtGui.QDialog):
 
     @QtCore.pyqtSlot()
     def emitAccepted(self):
-        self.login.emit(self.ui.usernameEdit.text(), self.ui.passwordEdit.text())
+        self.login.emit(self.ui.usernameEdit.text(),
+            self.ui.passwordEdit.text())
 
     def showEvent(self, event):
         self.ui.usernameEdit.clear()
@@ -55,29 +58,34 @@ class LoginDialog(QtGui.QDialog):
 class SelectDatabaseDialog(QtGui.QDialog):
     def __init__(self, parent):
         global app
-        super(SelectDatabaseDialog, self).__init__(parent)
+        super().__init__(parent)
 
         self.ui = Ui_SelectDatabase()
         self.ui.setupUi(self)
-        self.ui.lineEdit.setText(os.path.join(CURRENT_PATH, 'new_database.db'))
+        self.ui.lineEdit.setText(
+            os.path.join(CURRENT_PATH, 'new_database.db'))
 
         self.ui.pushButton.clicked.connect(self.showDialog)
-        self.accepted.connect(lambda: app.adjust_database(self.ui.lineEdit.text()))
+        self.accepted.connect(
+            lambda: app.adjust_database(self.ui.lineEdit.text()))
 
     @QtCore.pyqtSlot()
     def showDialog(self):
-        filename = QtGui.QFileDialog.getOpenFileName(self, 'Open database file', CURRENT_PATH)
+        filename = QtGui.QFileDialog.getOpenFileName(self,
+            'Open database file', CURRENT_PATH)
         if len(filename):
             self.ui.lineEdit.setText(filename)
 
+
 class AddAdminDialog(QtGui.QDialog):
     def __init__(self, parent):
-        super(AddAdminDialog, self).__init__(parent)
+        super().__init__(parent)
 
         self.ui = Ui_AddAdminDialog()
         self.ui.setupUi(self)
         self.ui.buttonBox.button(QtGui.QDialogButtonBox.Ok).setDisabled(True)
-        self.edits = self.ui.fullNameEdit, self.ui.usernameEdit, self.ui.passwordEdit, self.ui.companyNameEdit
+        self.edits = self.ui.fullNameEdit, self.ui.usernameEdit,\
+            self.ui.passwordEdit, self.ui.companyNameEdit
 
         for edit in self.edits:
             edit.textChanged.connect(self.emptiness_validator)
@@ -92,7 +100,7 @@ class AddAdminDialog(QtGui.QDialog):
 
 class RecordForm(QtGui.QDialog):
     def __init__(self, parent, tablename, pkey=None):
-        super(RecordForm, self).__init__(parent)
+        super().__init__(parent)
         self.setModal(True)
         self.buttonBox = QtGui.QDialogButtonBox(self)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
@@ -166,7 +174,8 @@ class RecordForm(QtGui.QDialog):
 
     def place_control(self, row, field, value=None):
         label = QtGui.QLabel(self)
-        label.setText(field.name if field.fk is None else field.verbose_field.name)
+        label.setText(field.name if field.fk is None
+            else field.verbose_field.name)
         self.gbox.addWidget(label, row, 0, 1, 1)
         if field.fk:
             ctrl = QtGui.QComboBox(self)
@@ -206,7 +215,7 @@ class RecordForm(QtGui.QDialog):
 
 class CompaniesRecordForm(RecordForm):
     def __init__(self, *args, **kwargs):
-        super(CompaniesRecordForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.name = self.ctrls[0].text()
 
     def handleAccept(self):
@@ -221,7 +230,7 @@ class CompaniesRecordForm(RecordForm):
 
 class DevelopersRecordForm(RecordForm):
     def __init__(self, *args, **kwargs):
-        super(DevelopersRecordForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if not app.grant.has_companies(): # bug here
             self.error("There must be at least one project before you can do this")
             self.close()
@@ -270,7 +279,7 @@ class Tasks_dependenciesRecordForm(RecordForm):
 
 class ViewTableForm(QtGui.QWidget):
     def __init__(self, parent, tablename):
-        super(ViewTableForm, self).__init__(parent)
+        super().__init__(parent)
 
         self.ui = Ui_ViewTableForm()
         self.ui.setupUi(self)
@@ -379,7 +388,7 @@ class MainWindow(QtGui.QMainWindow):
 
     def __init__(self):
         global app
-        super(MainWindow, self).__init__()
+        super().__init__()
 
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -446,7 +455,7 @@ class GrantApplication(QtGui.QApplication):
     def exec_(self):
         self.mainwindow = MainWindow()
         self.mainwindow.showNormal()
-        super(GrantApplication, self).exec_()
+        super().exec_()
 
     def adjust_database(self, filename):
         self.grant = Grant(echo=True, dbname=filename)
