@@ -35,14 +35,16 @@ class Table(object):
 
 
 class Field(object):
-    def __init__(self, name, type, not_null=True, pk=False, fk=None, unique=False, hidden=False, verbose_field=None):
+    def __init__(self, name, type, not_null=True, pk=False, fk=None, unique=False,
+            hidden=False, verbose_field=None, verbose_name=None):
         self.name = name
+        self.verbose_name = verbose_name or self.name
         self.type = type
         self.not_null = not_null and not pk
         self.unique = unique
         self.pk = pk
         self.fk = fk and Table.tables[fk[0]].get_field(fk[1])
-        if fk:
+        if fk is not None:
             if verbose_field:
                 self.verbose_field = Table.tables[fk[0]].get_field(verbose_field)
             else:
@@ -62,9 +64,7 @@ class Field(object):
         if self.pk:
             base += " primary key"
         if self.fk:
-            base += " references {0} ({1}) on delete cascade".format(self.fk.table.name, self.fk.name)
-            #base += " references {0} ({1}) on delete cascade on update cascade".format(
-            #    self.fk.table.name, self.fk.name)
+            base += " references {0} ({1}) on delete cascade on update cascade".format(self.fk.table.name, self.fk.name)
         if self.not_null:
             base += " not null"
         if self.unique :
@@ -108,14 +108,14 @@ class FieldEnum(FieldText):
 tables = [
     Table("companies",
         FieldInteger("id", pk=True, hidden=True),
-        FieldText("name", unique=True)),
+        FieldText("name", unique=True, verbose_name="Company name")),
     Table("projects",
         FieldInteger("id", pk=True, hidden=True),
         FieldText("name"),
         FieldDate("begin_date"),
         FieldDate("end_date")),
     Table("developers",
-        FieldText("full_name"),
+        FieldText("full_name", verbose_name="Full name"),
         FieldText("username", pk=True),
         FieldInteger("company_id", fk=("companies", "id"), verbose_field='name'),
         FieldText("password", hidden=True),
@@ -126,7 +126,7 @@ tables = [
         FieldBool("is_manager"),
         pk=("developer_username", "project_id")),
     Table("tasks",
-        FieldInteger("id", pk=True),
+        FieldInteger("id", pk=True, hidden=True),
         FieldText("title"),
         FieldText("description"),
         FieldInteger("project_id", fk=("projects", "id"), verbose_field='name'),
@@ -143,7 +143,7 @@ tables = [
         FieldDate("date_of_creation"),
         FieldEnum("status", ("active", "finished", "delayed"))),
     Table("reports",
-        FieldInteger("id", pk=True),
+        FieldInteger("id", pk=True, hidden=True),
         FieldText("developer_username", fk=("developers", "username")),
         FieldInteger("task_id", fk=("tasks", "id"), verbose_field='title'),
         FieldDate("begin_date"),

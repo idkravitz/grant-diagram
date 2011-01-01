@@ -131,29 +131,26 @@ class Grant(object):
         return self.db.delete(tablename, pkeys, pk)
 
     def get_table(self, tablename):
-        def extract_fields(table):
-            fields = []
-            joins = []
-            for f in table.fields:
-                if f.fk:
-                    res = extract_fields(f.fk.table)
-                    joins.append((f.fk.table.name, f.fullname(), f.fk.fullname()))
-                    fields += res[0]
-                    joins += res[1]
-                elif not f.hidden:
-                    fields.append("{0}.{1}".format(table.name, f.name))
-            return fields, joins
+        joined = set()
 
         if tablename in Table.tables:
             table = Table.tables[tablename]
-            pk = table.pk
-            pkfields = ["{0}.{1}".format(tablename, f.name) for f in pk]
-            fields, joins = extract_fields(table)
+            pkfields = [f.fullname() for f in table.pk]
+            joins, fields = [], []
+            for f in table.fields:
+                if f.fk:
+                    fields.append(f.verbose_field.fullname())
+                    jtable = f.fk.table.name
+                    if jtable not in joined:
+                        joins.append((jtable, f.fullname(), f.fk.fullname()))
+                        joined.add(jtable)
+                elif not f.hidden:
+                    fields.append(f.fullname())
             return self.db.select(tablename, pkfields + fields, joins=joins).fetchall()
 
     def get_record(self, tablename, pkeys):
         table = Table.tables[tablename]
-        where_clause = ",".join("{0}=?".format(f.name) for f in table.pk)
+        where_clause = " and ".join("{0}=?".format(f.name) for f in table.pk)
         return self.db.select(tablename, ('*',), where_clause, values=pkeys).fetchone()
 
     def add_company(self, name):

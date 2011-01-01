@@ -267,6 +267,7 @@ class Developers_distributionRecordForm(RecordForm):
 class Tasks_dependenciesRecordForm(RecordForm):
     pass
 
+
 class ViewTableForm(QtGui.QWidget):
     def __init__(self, parent, tablename):
         super(ViewTableForm, self).__init__(parent)
@@ -293,10 +294,9 @@ class ViewTableForm(QtGui.QWidget):
         self.tablename = tablename
         self.RecordClass = globals()[tablename.capitalize() + "RecordForm"]
 
-        self.setWindowTitle(tablename)
+        self.setWindowTitle("View {0}".format(tablename))
 
         self._fillTable()
-
 
     @QtCore.pyqtSlot()
     def adjust_actions(self):
@@ -322,11 +322,12 @@ class ViewTableForm(QtGui.QWidget):
 
 
     def _fillTable(self):
-        self.headers = app.session.get_headers(self.tablename)
+        self.headers = [h if h.fk is None else h.verbose_field
+            for h in app.session.get_fields_description(self.tablename) if not h.hidden]
 
         cols = len(self.headers)
         self.ui.tableWidget.setColumnCount(cols)
-        self.ui.tableWidget.setHorizontalHeaderLabels([h[0] for h in self.headers])
+        self.ui.tableWidget.setHorizontalHeaderLabels([h.verbose_name for h in self.headers])
         self.updateTable()
 
 
@@ -342,7 +343,7 @@ class ViewTableForm(QtGui.QWidget):
         for i, r in enumerate(values):
             self.pkeys.append(r[:pklen])
             for j, v in enumerate(r[pklen:]):
-                item = QtGui.QTableWidgetItem(self.headers[j][1].convert(v))
+                item = QtGui.QTableWidgetItem(self.headers[j].convert(v))
                 item.setTextAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
                 self.ui.tableWidget.setItem(i, j, item)
 
