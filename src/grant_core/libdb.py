@@ -112,9 +112,17 @@ class Grant(object):
     def get_fields_description(self, tablename):
         return Table.tables[tablename].fields
 
-    def get_fk_values(self, field):
+    def get_fk_values(self, field, exclude=None):
         verbose = field.verbose_field
-        return self.db.select(field.fk.table.name, (field.fk.name, verbose.name)).fetchall()
+        where = exclude and '{0}!={1}'.format(field.fk.name, exclude)
+        return self.db.select(field.fk.table.name, (field.fk.name, verbose.name), where).fetchall()
+
+    def get_prj_fk_for_manager(self, username):
+        where = 'id in (select project_id from developers_distribution where developer_username=?)'
+        return self.db.select('projects', ('id', 'name'), where, values=(username,)).fetchall()
+
+    def get_tasks_projects_id(self):
+        return self.db.select('tasks', ('project_id',)).fetchall()
 
     def update_record(self, tablename, values, pk):
         fields = [f.name for f in Table.tables[tablename].fields if not (f.hidden and f.pk)]
@@ -130,23 +138,30 @@ class Grant(object):
         pkeys = [p.name for p in Table.tables[tablename].pk]
         return self.db.delete(tablename, pkeys, pk)
 
-    def get_table(self, tablename):
-        joined = set()
+    def get_available_developers(self, project_id):
+        where = 'company_id in (select company_id from contracts where status="active" and project_id=?) or company_id=1'
+        return self.db.select('developers', ('username',), where, values=(project_id,)).fetchall()
 
-        if tablename in Table.tables:
-            table = Table.tables[tablename]
-            pkfields = [f.fullname() for f in table.pk]
-            joins, fields = [], []
-            for f in table.fields:
-                if f.fk:
-                    fields.append(f.verbose_field.fullname())
-                    jtable = f.fk.table.name
-                    if jtable not in joined:
-                        joins.append((jtable, f.fullname(), f.fk.fullname()))
-                        joined.add(jtable)
-                elif not f.hidden:
-                    fields.append(f.fullname())
-            return self.db.select(tablename, pkfields + fields, joins=joins).fetchall()
+    def get_table(self, tablename):
+        table = Table.tables[tablename]
+        joins, fields = [], []
+        pseudonames = (chr(ch) for ch in range(ord('a'), ord('z')))      # joined tables name mangling
+        pkfields = [f.fullname() for f in table.pk]
+        for f in table.fields:
+            if f.fk:
+                pseudoname = next(pseudonames)
+                fields.append(f.verbose_field.fullname(pseudoname))
+                jtable = f.fk.table.name
+                joins.append(("{0} as {1}".format(jtable, pseudoname),
+                    f.fullname(),
+                    f.fk.fullname(pseudoname)))
+            elif not f.hidden:
+                fields.append(f.fullname())
+        return self.db.select(tablename, pkfields + fields, joins=joins).fetchall()
+
+    def get_managed_projects(self, username):
+        return self.db.select('developers_distribution', ('project_id',),
+            'developer_username=? and is_manager=1', values=(username,)).fetchall()
 
     def get_record(self, tablename, pkeys):
         table = Table.tables[tablename]

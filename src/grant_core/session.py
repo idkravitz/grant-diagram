@@ -37,11 +37,20 @@ class Session(object):
     def add_record(self, tablename, values):
         return self.grant.add_record(tablename, values)
 
-    def get_fk_values(self, field):
-        values = self.grant.get_fk_values(field)
+    def get_fk_values(self, field, exclude=None):
+        values = self.grant.get_fk_values(field, exclude)
         verbose = field.verbose_field
         result = [(v[0], verbose.convert(v[1])) for v in values]
         return result
+
+    def get_tasks_projects_id(self):
+        return self.grant.get_tasks_projects_id()
+
+    def get_managed_projects(self):
+        return self.grant.get_managed_projects(self.username)
+
+    def get_prj_fk_for_manager(self):
+        return self.grant.get_prj_fk_for_manager(self.username)
 
     def logout(self):
         self.application.session = None

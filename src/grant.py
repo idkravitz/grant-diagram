@@ -15,15 +15,15 @@ from PyQt4 import QtGui, QtCore
 
 from grant_core.libdb import Grant
 from grant_core.session import Session
-from grant_core.init_tables import Table, FieldInteger, FieldText, FieldBool,\
-    FieldDate, FieldEnum
 
 from designer.mainwindow import Ui_MainWindow
 from designer.about_dialog import Ui_AboutDialog
 from designer.login_dialog import Ui_LoginDialog
 from designer.add_admin_dialog import Ui_AddAdminDialog
 from designer.select_database_dialog import Ui_SelectDatabase
-from designer.view_table_widget import Ui_ViewTableForm
+
+import gui.records
+import gui.viewtables
 
 CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -57,7 +57,6 @@ class LoginDialog(QtGui.QDialog):
 
 class SelectDatabaseDialog(QtGui.QDialog):
     def __init__(self, parent):
-        global app
         super().__init__(parent)
 
         self.ui = Ui_SelectDatabase()
@@ -98,296 +97,12 @@ class AddAdminDialog(QtGui.QDialog):
     def emptiness_validator(self, text):
         self.ui.buttonBox.button(QtGui.QDialogButtonBox.Ok).setDisabled(not all(len(edit.text()) for edit in self.edits))
 
-class RecordForm(QtGui.QDialog):
-    def __init__(self, parent, tablename, pkey=None):
-        super().__init__(parent)
-        self.setModal(True)
-        self.buttonBox = QtGui.QDialogButtonBox(self)
-        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
-        self.buttonBox.setCenterButtons(False)
-        self.gbox = QtGui.QGridLayout(self)
-
-        fields = app.session.get_fields_description(tablename)
-        self.rectype = "add" if pkey is None else "update"
-        self.pkey = pkey
-        self.tablename = tablename
-        rec = pkey and app.session.get_record(tablename, pkey)
-        row = 0
-        self.ctrls = []
-        for i, f in enumerate(fields):
-            if not (f.hidden and f.pk):
-                self.place_control(row, f, rec and rec[i])
-                row += 1
-        self.gbox.addWidget(self.buttonBox, row, 1, 1, 1)
-        self.setLayout(self.gbox)
-
-        self.buttonBox.accepted.connect(self.handleAccept)
-        self.buttonBox.rejected.connect(self.reject)
-
-        if pkey is not None:
-            self.accepted.connect(self.updateRecord)
-        else:
-            self.accepted.connect(self.addRecord)
-
-    def handleAccept(self):
-        self.accept()
-
-    def error(self, text):
-        mbox = QtGui.QMessageBox(
-            QtGui.QMessageBox.Critical,
-            'Error',
-            text,
-            QtGui.QMessageBox.Ok)
-        mbox.exec()
-
-    def _get_values(self):
-        values = []
-        for ctrl in self.ctrls:
-            if type(ctrl) is QtGui.QLineEdit:
-                value = ctrl.text()
-            elif type(ctrl) is QtGui.QCheckBox:
-                value = ctrl.isChecked()
-            elif type(ctrl) is QtGui.QComboBox:
-                value = ctrl.itemData(ctrl.currentIndex())
-                if value is None:
-                    value = ctrl.currentText()
-                print(value)
-            elif type(ctrl) is QtGui.QDateTimeEdit:
-                value = ctrl.dateTime().toString(QtCore.Qt.ISODate)
-            elif type(ctrl) is QtGui.QSpinBox:
-                value = ctrl.value()
-            values.append(value)
-        return values
-
-    def updateRecord(self):
-        values = self._get_values()
-        app.session.update_record(self.tablename, values, list(self.pkey))
-        for w in app.mainwindow.ui.mdiArea.subWindowList():
-            w.widget().updateTable()
-
-    def addRecord(self):
-        values = self._get_values()
-        app.session.add_record(self.tablename, values)
-        for w in app.mainwindow.ui.mdiArea.subWindowList():
-            w.widget().updateTable()
-
-    def place_control(self, row, field, value=None):
-        label = QtGui.QLabel(self)
-        label.setText(field.name if field.fk is None
-            else field.verbose_field.name)
-        self.gbox.addWidget(label, row, 0, 1, 1)
-        if field.fk:
-            ctrl = QtGui.QComboBox(self)
-            items = app.session.get_fk_values(field)
-            for n, i in enumerate(items):
-                ctrl.addItem(i[1], i[0])
-                if value is not None and value == i[0]:
-                    ctrl.setCurrentIndex(n)
-        elif type(field) is FieldBool:
-            ctrl = QtGui.QCheckBox(self)
-            if value is not None:
-                ctrl.setChecked(value == 1)
-        elif type(field) is FieldDate:
-            if value is not None:
-                datetime = QtCore.QDateTime.fromString(value, QtCore.Qt.ISODate)
-            else:
-                datetime = QtCore.QDateTime.currentDateTime()
-            ctrl = QtGui.QDateTimeEdit(datetime, self)
-            ctrl.setCalendarPopup(True)
-        elif type(field) is FieldEnum:
-            ctrl = QtGui.QComboBox(self)
-            items = field.values
-            for n, i in enumerate(items):
-                ctrl.addItem(i)
-                if value is not None and value == i:
-                    ctrl.setCurrentIndex(n)
-        elif type(field) is FieldInteger:
-            ctrl = QtGui.QSpinBox(self)
-            if value is not None:
-                ctrl.setValue(value)
-        else:
-            ctrl = QtGui.QLineEdit(self)
-            if value is not None:
-                ctrl.setText(field.convert(value))
-        self.ctrls.append(ctrl)
-        self.gbox.addWidget(ctrl, row, 1, 1, 1)
-
-class CompaniesRecordForm(RecordForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.name = self.ctrls[0].text()
-
-    def handleAccept(self):
-        name_edit = self.ctrls[0]
-        name = name_edit.text()
-        if not len(name):
-            self.error("Company name cann't be empty")
-        elif (not self.pkey or name != self.name) and not app.grant.check_company_name_is_free(name):
-            self.error("This name is already occupied")
-        else:
-            self.accept()
-
-class DevelopersRecordForm(RecordForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if not app.grant.has_companies(): # bug here
-            self.error("There must be at least one project before you can do this")
-            self.close()
-
-    def handleAccept(self):
-        fname = self.ctrls[0].text()
-        username = self.ctrls[1].text()
-        password = self.ctrls[-2].text()
-        is_admin = self.ctrls[-1].isChecked()
-        if any(not(len(f)) for f in (fname, username, password)):
-            self.error("Text fields cann't be empty")
-        elif (not self.pkey or self.pkey[0] != username) and not app.grant.check_username_is_free(username):
-            self.error("User with such username already exists")
-        elif not is_admin and not app.grant.has_admins(self.pkey and self.pkey[0]):
-            self.error("You can't leave database without admins")
-        else:
-            self.accept()
-
-class ProjectsRecordForm(RecordForm):
-    def handleAccept(self):
-        prjname = self.ctrls[0].text()
-        datebegin = self.ctrls[1].dateTime()
-        dateend = self.ctrls[2].dateTime()
-        if not len(prjname):
-            self.error("Project name cann't be empty")
-        elif dateend <= datebegin:
-            self.error("Project end date must be greater than begin date")
-        else:
-            self.accept()
-
-class ContractsRecordForm(RecordForm):
-    pass
-
-class TasksRecordForm(RecordForm):
-    pass
-
-class ReportsRecordForm(RecordForm):
-    pass
-
-class Developers_distributionRecordForm(RecordForm):
-    pass
-
-class Tasks_dependenciesRecordForm(RecordForm):
-    pass
-
-
-class ViewTableForm(QtGui.QWidget):
-    def __init__(self, parent, tablename):
-        super().__init__(parent)
-
-        self.ui = Ui_ViewTableForm()
-        self.ui.setupUi(self)
-
-        ui = self.ui
-        if app.session.is_admin:
-            ui.toolbar = QtGui.QToolBar('Tools', self)
-            ui.verticalLayout.insertWidget(0, self.ui.toolbar)
-            ui.addRecord = QtGui.QAction('Add', self)
-            ui.addRecord.triggered.connect(self.addRecord)
-            ui.editRecord = QtGui.QAction('Edit', self)
-            ui.editRecord.setDisabled(True)
-            ui.editRecord.triggered.connect(self.editActionTriggered)
-            ui.deleteRecord = QtGui.QAction('Delete', self)
-            ui.deleteRecord.setDisabled(True)
-            ui.deleteRecord.triggered.connect(self.deleteActionTriggered)
-            for action in [ui.addRecord, ui.editRecord, ui.deleteRecord]:
-                ui.toolbar.addAction(action)
-            ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
-            ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
-        self.tablename = tablename
-        self.RecordClass = globals()[tablename.capitalize() + "RecordForm"]
-
-        self.setWindowTitle("View {0}".format(tablename))
-
-        self._fillTable()
-
-    @QtCore.pyqtSlot()
-    def adjust_actions(self):
-        val = len(self.ui.tableWidget.selectedItems()) == 0
-        self.ui.editRecord.setDisabled(val)
-        self.ui.deleteRecord.setDisabled(val)
-
-    @QtCore.pyqtSlot()
-    def editActionTriggered(self):
-        row = self.ui.tableWidget.currentRow()
-        self.editRecord(row, 0)
-
-    @QtCore.pyqtSlot()
-    def deleteActionTriggered(self):
-        reply = QtGui.QMessageBox.question(self, 'Message',
-            'Are you sure to delete this record ?',
-            QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
-        if reply == QtGui.QMessageBox.Yes:
-            row = self.ui.tableWidget.currentRow()
-            app.session.delete_record(self.tablename, self.pkeys[row])
-            for w in app.mainwindow.ui.mdiArea.subWindowList():
-                w.widget().updateTable()
-
-
-    def _fillTable(self):
-        self.headers = [h if h.fk is None else h.verbose_field
-            for h in app.session.get_fields_description(self.tablename) if not h.hidden]
-
-        cols = len(self.headers)
-        self.ui.tableWidget.setColumnCount(cols)
-        self.ui.tableWidget.setHorizontalHeaderLabels([h.verbose_name for h in self.headers])
-        self.updateTable()
-
-
-    def updateTable(self):
-        self.ui.tableWidget.clearContents()
-
-        values = app.session.get_table(self.tablename)
-        rows = len(values)
-        self.ui.tableWidget.setRowCount(rows)
-        if rows:
-            self.pkeys = []
-            pklen = len(values[0]) - self.ui.tableWidget.columnCount()
-        for i, r in enumerate(values):
-            self.pkeys.append(r[:pklen])
-            for j, v in enumerate(r[pklen:]):
-                item = QtGui.QTableWidgetItem(self.headers[j].convert(v))
-                item.setTextAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
-                self.ui.tableWidget.setItem(i, j, item)
-
-    @QtCore.pyqtSlot(int, int)
-    def editRecord(self, row, col):
-        rec = self.RecordClass(self, self.tablename, self.pkeys[row])
-        rec.open()
-
-    def addRecord(self):
-        rec = self.RecordClass(self, self.tablename)
-        rec.open()
-
-    def error(self, text):
-        mbox = QtGui.QMessageBox(
-            QtGui.QMessageBox.Critical,
-            'Error',
-            text,
-            QtGui.QMessageBox.Ok)
-        mbox.exec()
-
-class CompaniesViewTableForm(ViewTableForm):
-    @QtCore.pyqtSlot()
-    def deleteActionTriggered(self):
-        row = self.ui.tableWidget.currentRow()
-        if self.pkeys[row][0] == 1:
-            self.error("Cann't delete your company")
-        else:
-            super(CompaniesViewTableForm, self).deleteActionTriggered()
 
 class MainWindow(QtGui.QMainWindow):
     def tableTrigger(self, tablename):
         return lambda: self.createTableView(tablename)
 
     def __init__(self):
-        global app
         super().__init__()
 
         self.ui = Ui_MainWindow()
@@ -419,9 +134,12 @@ class MainWindow(QtGui.QMainWindow):
         self.set_actions()
 
     def createTableView(self, tablename):
-        cls = ViewTableForm
-        if tablename == 'companies':
-            cls = CompaniesViewTableForm
+        cls = gui.viewtables.ViewTableForm
+        clsmaps = {'companies': gui.viewtables.CompaniesViewTableForm,
+            'developers_distribution': gui.viewtables.DevelopersDistributionTableForm,
+            'tasks': gui.viewtables.TasksTableForm }
+        if tablename in clsmaps:
+            cls = clsmaps[tablename]
         table_widget = cls(self, tablename)
         self.ui.mdiArea.addSubWindow(table_widget)
         table_widget.show()
@@ -473,9 +191,11 @@ class GrantApplication(QtGui.QApplication):
     def login(self, username, password):
         is_admin = self.grant.get_user(username, password)
         if is_admin is not None:
+            for w in app.mainwindow.ui.mdiArea.subWindowList():
+                    w.close()
             self.session = Session(self, username=username, password=password, is_admin=is_admin)
             self.mainwindow.set_actions(False)
-            self.mainwindow.showStatusMessage('Logged as {0}{1}'.format(username, "[admin]" if is_admin else ""))
+            self.mainwindow.showStatusMessage('Logged in as {0} {1}'.format(username, "[admin]" if is_admin else ""))
             return self.session
         else:
             mbox = QtGui.QMessageBox(
@@ -487,4 +207,5 @@ class GrantApplication(QtGui.QApplication):
             return None
 
 app = GrantApplication(sys.argv)
+gui.records.app = gui.viewtables.app = app
 sys.exit(app.exec_())

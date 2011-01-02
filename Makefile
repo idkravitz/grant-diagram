@@ -5,3 +5,6 @@ all: $(compiled)
 
 %.py: %.ui
 	pyuic4 '$<' -o '$@'
+
+clean:
+	rm $(compiled)

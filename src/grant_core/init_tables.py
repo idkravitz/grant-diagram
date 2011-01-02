@@ -52,8 +52,9 @@ class Field(object):
         self.constraint = None
         self.hidden = hidden
 
-    def fullname(self):
-        return self.table.name + "." + self.name
+    def fullname(self, pseudo_name=None):
+        pseudo_name = pseudo_name or self.table.name
+        return pseudo_name + "." + self.name
 
     @classmethod
     def convert(cls, val):
