@@ -79,8 +79,7 @@ class RecordForm(QtGui.QDialog):
 
     def place_label(self, row, field):
         label = QtGui.QLabel(self)
-        label.setText(field.name if field.fk is None
-            else field.verbose_field.name)
+        label.setText(field.verbose_name)
         self.gbox.addWidget(label, row, 0, 1, 1)
 
     def createComboBox(self, field, value):
@@ -210,6 +209,8 @@ class ContractsRecordForm(RecordForm):
         return ctrl
 
 class Developers_distributionRecordForm(RecordForm):
+    # TODO:
+    # fix pkey violation integrity error
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ctrls[1].currentIndexChanged.connect(self.refillDevelopers)
@@ -243,6 +244,8 @@ class Developers_distributionRecordForm(RecordForm):
 
 
 class TasksRecordForm(RecordForm):
+    # TODO:
+    # Do lots of checks
     def createComboBox(self, field, value):
         if app.session.is_admin:
             ctrl = super().createComboBox(field, value)
@@ -256,7 +259,76 @@ class TasksRecordForm(RecordForm):
         return ctrl
 
 class ReportsRecordForm(RecordForm):
+    # Check ownership and other shit
     pass
 
 class Tasks_dependenciesRecordForm(RecordForm):
-    pass
+    # TODO:
+    # Find a loop in dependencies graph
+    #   several ideas:
+    # 1. in any piece of shit^W time we have a normally
+    #   unlooped graph, so we need to check only if we can accidentally pull a loop in it
+    # 2. this check must be performed only on add and edit (you can freely pee^W delete anything)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ctrls[0].currentIndexChanged.connect(self.refillDevelopers)
+        self.ctrls[0].currentIndexChanged.emit(self.ctrls[0].currentIndex())
+
+    def handleAccept(self):
+        cicle_error = "Circular dependency detected"
+        if self.ctrls[0].currentText() == self.ctrls[1].currentText():
+            self.error(cicle_error)
+        elif self.haveCicle():
+            self.error(cicle_error)
+        else:
+            self.accept()
+
+    def haveCicle(self):
+        t, d = [c.itemData(c.currentIndex()) for c in self.ctrls]
+        deps = app.grant.get_available_tasks_dependencies(t)
+        print(deps)
+        graph = {}
+        for t, d in deps + [(t, d)]:
+            if t in graph:
+                graph[t].append(d)
+            else:
+                graph[t] = [d]
+        trace = set((t,))
+
+        def dfs(i):
+            if i in trace:
+                return True
+            trace.add(i)
+            if i not
+            for d in graph[i]:
+                if dfs(d):
+                    return True
+            trace.remove(i)
+            return False
+
+        return dfs(d)
+
+    def createComboBox(self, field, value):
+        if app.session.is_admin or field.name != 'task_id':
+            ctrl = super().createComboBox(field, value)
+        else:
+            ctrl = QtGui.QComboBox(self)
+            items = app.session.get_tasks_fk_for_manager()
+            print(items)
+            for n, (i, v) in enumerate(items):
+                ctrl.addItem(v, i)
+                if value is not None and value == i:
+                    ctrl.setCurrentIndex(n)
+        return ctrl
+
+    @QtCore.pyqtSlot(int)
+    def refillDevelopers(self, index):
+        task_id = self.ctrls[0].itemData(index)
+        ctrl = self.ctrls[1]
+        ctrl.clear()
+        tasks = app.grant.get_available_tasks(task_id)
+        for n, (i, v) in enumerate(tasks):
+            ctrl.addItem(v, i)
+            if self.rec is not None and self.rec[1] == i:
+                ctrl.setCurrentIndex(n)
+

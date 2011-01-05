@@ -46,11 +46,17 @@ class Session(object):
     def get_tasks_projects_id(self):
         return self.grant.get_tasks_projects_id()
 
+    def get_tasks_dependencies_projects_id(self):
+        return self.grant.get_tasks_dependencies_projects_id()
+
     def get_managed_projects(self):
         return self.grant.get_managed_projects(self.username)
 
     def get_prj_fk_for_manager(self):
         return self.grant.get_prj_fk_for_manager(self.username)
+
+    def get_tasks_fk_for_manager(self):
+        return self.grant.get_tasks_fk_for_manager(self.username)
 
     def logout(self):
         self.application.session = None

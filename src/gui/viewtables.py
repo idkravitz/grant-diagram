@@ -59,8 +59,7 @@ class ViewTableForm(QtGui.QWidget):
 
 
     def _fillTable(self):
-        self.headers = [h if h.fk is None else h.verbose_field
-            for h in app.session.get_fields_description(self.tablename) if not h.hidden]
+        self.headers = [h for h in app.session.get_fields_description(self.tablename) if not h.hidden]
 
         cols = len(self.headers)
         self.ui.tableWidget.setColumnCount(cols)
@@ -163,3 +162,29 @@ class TasksTableForm(ViewTableForm):
         self.ui.editRecord.setDisabled(val)
         self.ui.deleteRecord.setDisabled(val)
 
+class TasksDependenciesForm(ViewTableForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bypass = app.session.is_admin
+        self.projects_id = None
+        if not self.bypass:
+            self.managed_prjs = app.session.get_managed_projects()
+            if len(self.managed_prjs):
+                self.projects_id = [p for p, in app.session.get_tasks_dependencies_projects_id()]
+                self.managed_prjs = set(p for p, in self.managed_prjs)
+                self.ui.addRecord.setDisabled(False)
+                self.ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
+                self.ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
+
+    @QtCore.pyqtSlot(int, int)
+    def editRecord(self, row, col):
+        if self.bypass or (self.projects_id and self.projects_id[row] in self.managed_prjs):
+            super().editRecord(row, col)
+
+    @QtCore.pyqtSlot()
+    def adjust_actions(self):
+        row = self.ui.tableWidget.currentRow()
+        val = len(self.ui.tableWidget.selectedItems()) == 0
+        val = val and (self.bypass or (len(self.projects_id) != 0 and self.projects_id[row] in self.managed_prjs))
+        self.ui.editRecord.setDisabled(val)
+        self.ui.deleteRecord.setDisabled(val)

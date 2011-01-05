@@ -49,6 +49,7 @@ class Field(object):
                 self.verbose_field = Table.tables[fk[0]].get_field(verbose_field)
             else:
                 self.verbose_field = self.fk
+            self.verbose_name = verbose_name or self.verbose_field.verbose_name
         self.constraint = None
         self.hidden = hidden
 
@@ -112,9 +113,9 @@ tables = [
         FieldText("name", unique=True, verbose_name="Company name")),
     Table("projects",
         FieldInteger("id", pk=True, hidden=True),
-        FieldText("name"),
-        FieldDate("begin_date"),
-        FieldDate("end_date")),
+        FieldText("name", verbose_name="Project name"),
+        FieldDate("begin_date", verbose_name="Date of begin"),
+        FieldDate("end_date", verbose_name="Planed date of end")),
     Table("developers",
         FieldText("full_name", verbose_name="Full name"),
         FieldText("username", pk=True),
@@ -134,8 +135,8 @@ tables = [
         FieldInteger("hours"),
         FieldEnum("status", ("active", "finished", "delayed"))),
     Table("tasks_dependencies",
-        FieldInteger("task_id", fk=("tasks", "id"), verbose_field='title'),
-        FieldInteger("depended_task_id", fk=("tasks", "id"), verbose_field='title'),
+        FieldInteger("task_id", fk=("tasks", "id"), verbose_field='title', verbose_name="Task"),
+        FieldInteger("depended_task_id", fk=("tasks", "id"), verbose_field='title', verbose_name="Depends on task"),
         pk=("task_id", "depended_task_id")),
     Table("contracts",
         FieldInteger("number", pk=True, hidden=True),

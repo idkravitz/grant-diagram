@@ -121,8 +121,17 @@ class Grant(object):
         where = 'id in (select project_id from developers_distribution where developer_username=?)'
         return self.db.select('projects', ('id', 'name'), where, values=(username,)).fetchall()
 
+    def get_tasks_fk_for_manager(self, username):
+        return self.db.select('tasks as a', ('a.id', 'a.title'),
+            'b.developer_username=? and b.is_manager=1',
+            joins=(('developers_distribution as b', 'a.project_id', 'b.project_id'),),
+            values=(username,)).fetchall()
+
     def get_tasks_projects_id(self):
         return self.db.select('tasks', ('project_id',)).fetchall()
+
+    def get_tasks_dependencies_projects_id(self):
+        return self.db.select('tasks_dependencies as b', ('a.project_id',), joins=(("tasks as a", "b.task_id", "a.id"),)).fetchall()
 
     def update_record(self, tablename, values, pk):
         fields = [f.name for f in Table.tables[tablename].fields if not (f.hidden and f.pk)]
@@ -141,6 +150,20 @@ class Grant(object):
     def get_available_developers(self, project_id):
         where = 'company_id in (select company_id from contracts where status="active" and project_id=?) or company_id=1'
         return self.db.select('developers', ('username',), where, values=(project_id,)).fetchall()
+
+    def get_available_tasks(self, task_id):
+        project_id, = self.db.select('tasks', ('project_id',), 'id=?',
+            values=(task_id,)).fetchone()
+        return self.db.select('tasks', ('id', 'title'), 'project_id=?',
+            values=(project_id,)).fetchall()
+
+    def get_available_tasks_dependencies(self, task_id):
+        project_id, = self.db.select('tasks', ('project_id',), 'id=?',
+            values=(task_id,)).fetchone()
+        return self.db.select('tasks_dependencies as a', ('a.task_id', 'a.depended_task_id'),
+            'b.project_id=?',
+            joins=(('tasks as b', 'a.task_id', 'b.id'),),
+            values=(project_id,)).fetchall()
 
     def get_table(self, tablename):
         table = Table.tables[tablename]
