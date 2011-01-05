@@ -66,6 +66,8 @@ class ViewTableForm(QtGui.QWidget):
         self.ui.tableWidget.setHorizontalHeaderLabels([h.verbose_name for h in self.headers])
         self.updateTable()
 
+    def postUpdateActions(self):
+        pass
 
     def updateTable(self):
         self.ui.tableWidget.clearContents()
@@ -82,6 +84,7 @@ class ViewTableForm(QtGui.QWidget):
                 item = QtGui.QTableWidgetItem(self.headers[j].convert(v))
                 item.setTextAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
                 self.ui.tableWidget.setItem(i, j, item)
+        self.postUpdateActions()
 
     @QtCore.pyqtSlot(int, int)
     def editRecord(self, row, col):
@@ -111,8 +114,7 @@ class CompaniesViewTableForm(ViewTableForm):
             super(CompaniesViewTableForm, self).deleteActionTriggered()
 
 class DevelopersDistributionTableForm(ViewTableForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def postUpdateActions(self):
         self.bypass = app.session.is_admin
         if not self.bypass:
             self.managed_prjs = app.session.get_managed_projects()
@@ -136,8 +138,7 @@ class DevelopersDistributionTableForm(ViewTableForm):
         self.ui.deleteRecord.setDisabled(val)
 
 class TasksTableForm(ViewTableForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def postUpdateActions(self):
         self.bypass = app.session.is_admin
         self.projects_id = None
         if not self.bypass:
@@ -163,8 +164,7 @@ class TasksTableForm(ViewTableForm):
         self.ui.deleteRecord.setDisabled(val)
 
 class TasksDependenciesForm(ViewTableForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def postUpdateActions(self):
         self.bypass = app.session.is_admin
         self.projects_id = None
         if not self.bypass:
