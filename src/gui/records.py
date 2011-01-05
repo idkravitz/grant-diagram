@@ -286,7 +286,8 @@ class Tasks_dependenciesRecordForm(RecordForm):
     def haveCicle(self):
         t, d = [c.itemData(c.currentIndex()) for c in self.ctrls]
         deps = app.grant.get_available_tasks_dependencies(t)
-        print(deps)
+        if self.rec:
+            deps.remove(self.rec)
         graph = {}
         for t, d in deps + [(t, d)]:
             if t in graph:
@@ -299,10 +300,8 @@ class Tasks_dependenciesRecordForm(RecordForm):
             if i in trace:
                 return True
             trace.add(i)
-            if i not
-            for d in graph[i]:
-                if dfs(d):
-                    return True
+            if i in graph and any(dfs(d) for d in graph[i]):
+                return True
             trace.remove(i)
             return False
 
