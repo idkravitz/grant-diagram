@@ -104,6 +104,7 @@ class RecordForm(QtGui.QDialog):
             datetime = QtCore.QDateTime.currentDateTime()
         ctrl = QtGui.QDateTimeEdit(datetime, self)
         ctrl.setCalendarPopup(True)
+        ctrl.setDisplayFormat("yyyy.MM.dd hh:00") # Precise to +-1 hour
         return ctrl
 
     def createEnumComboBox(self, field, value):
