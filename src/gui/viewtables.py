@@ -84,6 +84,7 @@ class ViewTableForm(QtGui.QWidget):
                 item = QtGui.QTableWidgetItem(self.headers[j].convert(v))
                 item.setTextAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
                 self.ui.tableWidget.setItem(i, j, item)
+
         self.postUpdateActions()
 
     @QtCore.pyqtSlot(int, int)
@@ -186,5 +187,24 @@ class TasksDependenciesForm(ViewTableForm):
         row = self.ui.tableWidget.currentRow()
         val = len(self.ui.tableWidget.selectedItems()) == 0
         val = val and (self.bypass or (len(self.projects_id) != 0 and self.projects_id[row] in self.managed_prjs))
+        self.ui.editRecord.setDisabled(val)
+        self.ui.deleteRecord.setDisabled(val)
+
+class ReportsForm(ViewTableForm):
+    def postUpdateActions(self):
+        self.bypass = app.session.is_admin
+
+    @QtCore.pyqtSlot(int, int)
+    def editRecord(self, row, col):
+        if self.bypass or self.ui.tableWidget.item(row, 0).text() == app.session.username:
+            super().editRecord(row, col)
+
+    @QtCore.pyqtSlot()
+    def adjust_actions(self):
+        row = self.ui.tableWidget.currentRow()
+        item = self.ui.tableWidget.item(row, 0)
+        username = item.text()
+        val = len(self.ui.tableWidget.selectedItems()) == 0
+        val = self.bypass or (val and username == app.session.username)
         self.ui.editRecord.setDisabled(val)
         self.ui.deleteRecord.setDisabled(val)

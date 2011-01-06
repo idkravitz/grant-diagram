@@ -233,3 +233,8 @@ class Grant(object):
     def has_companies(self):
         companies_count = self.db.select('companies', ('count(*)',))
         return companies_count.fetchone()[0]
+
+    def has_distributed(self, username):
+        count = self.db.select('developers_distribution', ('count(*)',), 'developer_username=?',
+            values=(username,)).one()
+        return count[0] != 0

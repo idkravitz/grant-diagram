@@ -138,7 +138,8 @@ class MainWindow(QtGui.QMainWindow):
         clsmaps = {'companies': gui.viewtables.CompaniesViewTableForm,
             'developers_distribution': gui.viewtables.DevelopersDistributionTableForm,
             'tasks': gui.viewtables.TasksTableForm,
-            'tasks_dependencies': gui.viewtables.TasksDependenciesForm}
+            'tasks_dependencies': gui.viewtables.TasksDependenciesForm,
+            'reports': gui.viewtables.ReportsForm}
         if tablename in clsmaps:
             cls = clsmaps[tablename]
         table_widget = cls(self, tablename)
