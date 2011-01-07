@@ -165,6 +165,13 @@ class Grant(object):
             joins=(('tasks as b', 'a.task_id', 'b.id'),),
             values=(project_id,)).fetchall()
 
+    def get_developers_tasks(self, username):
+        return self.db.select('tasks as a',
+            ('a.id', 'a.title'),
+            joins=(('developers_distribution as b', 'a.project_id', 'b.project_id'),),
+            where="b.developer_username=?", values=(username,)).fetchall()
+
+
     def get_table(self, tablename):
         table = Table.tables[tablename]
         joins, fields = [], []
@@ -236,5 +243,5 @@ class Grant(object):
 
     def has_distributed(self, username):
         count = self.db.select('developers_distribution', ('count(*)',), 'developer_username=?',
-            values=(username,)).one()
+            values=(username,)).fetchone()
         return count[0] != 0

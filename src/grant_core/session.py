@@ -43,6 +43,12 @@ class Session(object):
         result = [(v[0], verbose.convert(v[1])) for v in values]
         return result
 
+    def has_distributed(self):
+        return self.grant.has_distributed(self.username)
+
+    def get_developers_tasks(self):
+        return self.grant.get_developers_tasks(self.username)
+
     def get_tasks_projects_id(self):
         return self.grant.get_tasks_projects_id()
 

@@ -3,6 +3,9 @@ from grant_core.init_tables import Table, FieldInteger, FieldText, FieldBool,\
     FieldDate, FieldEnum
 
 class RecordForm(QtGui.QDialog):
+    def is_hidden(self, field):
+        return field.hidden and field.pk
+
     def __init__(self, parent, tablename, pkey=None):
         super().__init__(parent)
         self.setModal(True)
@@ -21,7 +24,7 @@ class RecordForm(QtGui.QDialog):
         row = 0
         self.ctrls = []
         for i, f in enumerate(fields):
-            if not (f.hidden and f.pk):
+            if not self.is_hidden(f):
                 self.place_label(row, f)
                 self.place_control(row, f, rec and rec[i])
                 row += 1
@@ -59,7 +62,11 @@ class RecordForm(QtGui.QDialog):
                 if value is None:
                     value = ctrl.currentText()
             elif type(ctrl) is QtGui.QDateTimeEdit:
-                value = ctrl.dateTime().toString(QtCore.Qt.ISODate)
+                dt = ctrl.dateTime()
+                t = dt.time()
+                t.setHMS(t.hour(), 0, 0)
+                dt.setTime(t)
+                value = dt.toString(QtCore.Qt.ISODate)
             elif type(ctrl) is QtGui.QSpinBox:
                 value = ctrl.value()
             values.append(value)
@@ -260,16 +267,30 @@ class TasksRecordForm(RecordForm):
         return ctrl
 
 class ReportsRecordForm(RecordForm):
-    # Check ownership and other shit
-    pass
+    def is_hidden(self, field):
+        return super().is_hidden(field) or (field.name == 'developer_username'
+            and not app.session.is_admin)
+
+    def _get_values(self):
+        values = super()._get_values()
+        if not app.session.is_admin:
+            values.insert(0, app.session.username)
+        return values
+
+    def createComboBox(self, field, value):
+        if not app.session.is_admin and field.name == 'task_id':
+            ctrl = QtGui.QComboBox(self)
+            items = app.session.get_developers_tasks()
+            for n, (i, v) in enumerate(items):
+                ctrl.addItem(v, i)
+                if value is not None and value == i:
+                    ctrl.setCurrentIndex(n)
+        else:
+            ctrl = super().createComboBox(field, value)
+        return ctrl
+
 
 class Tasks_dependenciesRecordForm(RecordForm):
-    # TODO:
-    # Find a loop in dependencies graph
-    #   several ideas:
-    # 1. in any piece of shit^W time we have a normally
-    #   unlooped graph, so we need to check only if we can accidentally pull a loop in it
-    # 2. this check must be performed only on add and edit (you can freely pee^W delete anything)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ctrls[0].currentIndexChanged.connect(self.refillDevelopers)

@@ -122,7 +122,9 @@ class DevelopersDistributionTableForm(ViewTableForm):
             if len(self.managed_prjs):
                 self.managed_prjs = set(p for p, in self.managed_prjs)
                 self.ui.addRecord.setDisabled(False)
+                self.ui.tableWidget.cellDoubleClicked.disconnect(self.editRecord)
                 self.ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
+                self.ui.tableWidget.itemSelectionChanged.disconnect(self.adjust_actions)
                 self.ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
 
     @QtCore.pyqtSlot(int, int)
@@ -148,7 +150,9 @@ class TasksTableForm(ViewTableForm):
                 self.projects_id = [p for p, in app.session.get_tasks_projects_id()]
                 self.managed_prjs = set(p for p, in self.managed_prjs)
                 self.ui.addRecord.setDisabled(False)
+                self.ui.tableWidget.cellDoubleClicked.disconnect(self.editRecord)
                 self.ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
+                self.ui.tableWidget.itemSelectionChanged.disconnect(self.adjust_actions)
                 self.ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
 
     @QtCore.pyqtSlot(int, int)
@@ -174,7 +178,9 @@ class TasksDependenciesForm(ViewTableForm):
                 self.projects_id = [p for p, in app.session.get_tasks_dependencies_projects_id()]
                 self.managed_prjs = set(p for p, in self.managed_prjs)
                 self.ui.addRecord.setDisabled(False)
+                self.ui.tableWidget.cellDoubleClicked.disconnect(self.editRecord)
                 self.ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
+                self.ui.tableWidget.itemSelectionChanged.disconnect(self.adjust_actions)
                 self.ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
 
     @QtCore.pyqtSlot(int, int)
@@ -193,6 +199,12 @@ class TasksDependenciesForm(ViewTableForm):
 class ReportsForm(ViewTableForm):
     def postUpdateActions(self):
         self.bypass = app.session.is_admin
+        if app.session.has_distributed():
+            self.ui.addRecord.setDisabled(False)
+            self.ui.tableWidget.cellDoubleClicked.disconnect(self.editRecord)
+            self.ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
+            self.ui.tableWidget.itemSelectionChanged.disconnect(self.adjust_actions)
+            self.ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
 
     @QtCore.pyqtSlot(int, int)
     def editRecord(self, row, col):
@@ -204,7 +216,7 @@ class ReportsForm(ViewTableForm):
         row = self.ui.tableWidget.currentRow()
         item = self.ui.tableWidget.item(row, 0)
         username = item.text()
-        val = len(self.ui.tableWidget.selectedItems()) == 0
-        val = self.bypass or (val and username == app.session.username)
-        self.ui.editRecord.setDisabled(val)
-        self.ui.deleteRecord.setDisabled(val)
+        enable = len(self.ui.tableWidget.selectedItems()) != 0
+        enable = self.bypass or (enable and username == app.session.username)
+        self.ui.editRecord.setDisabled(not enable)
+        self.ui.deleteRecord.setDisabled(not enable)
