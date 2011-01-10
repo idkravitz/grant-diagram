@@ -137,6 +137,8 @@ class RecordForm(QtGui.QDialog):
         ctrl = QtGui.QSpinBox(self)
         if value is not None:
             ctrl.setValue(value)
+        ctrl.setMinimum(1)
+        ctrl.setMaximum(9999)
         return ctrl
 
     def createLineEdit(self, field, value):
@@ -226,6 +228,14 @@ class ContractsRecordForm(RecordForm):
 class Developers_distributionRecordForm(RecordForm):
     # TODO:
     # fix pkey violation integrity error
+    def handleAccept(self):
+        if app.grant.has_distributed_pkey(
+            self.ctrls[0].itemData(self.ctrls[0].currentIndex()),
+            self.ctrls[1].itemData(self.ctrls[1].currentIndex())):
+            self.error("You already assigned this user to this project")
+        else:
+            super().handleAccept()
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ctrls[1].currentIndexChanged.connect(self.refillDevelopers)
@@ -262,6 +272,12 @@ class TasksRecordForm(RecordForm):
     def handleAccept(self):
         if self.is_not_manager and self.ctrls[-1].currentText() == 'delayed':
             self.error("You can\'t mark task as delayed")
+        elif self.ctrls[-1].currentText() == 'finished' and self.unfinishedDependencies():
+            self.error("You can't close task with unfinished dependencies")
+        elif len(self.ctrls[0].text()) == 0:
+            self.error("Can't leave task title empty")
+        elif len(self.ctrls[1].text()) == 0:
+            self.error("Can't leave task description empty")
         else:
             super().handleAccept()
 
@@ -271,8 +287,7 @@ class TasksRecordForm(RecordForm):
         if self.is_not_manager:
             for ctrl in self.ctrls[:-1]:
                 ctrl.setDisabled(True)
-    # TODO:
-    # Do lots of checks
+
     def createComboBox(self, field, value):
         if app.session.is_admin or self.is_not_manager:
             ctrl = super().createComboBox(field, value)
@@ -284,6 +299,12 @@ class TasksRecordForm(RecordForm):
                 if value is not None and value == i:
                     ctrl.setCurrentIndex(n)
         return ctrl
+
+    def unfinishedDependencies(self):
+        if self.pkey is None:
+            return False
+        task_id = self.pkey[0]
+        return app.grant.has_unfinished_dependencies(task_id)
 
 class ReportsRecordForm(RecordForm):
     def handleAccept(self):
@@ -327,6 +348,7 @@ class ReportsRecordForm(RecordForm):
     def refillTasksSelect(self, index):
         ctrl = self.ctrls[1]
         data = ctrl.itemData(ctrl.currentIndex())
+        ctrl.currentIndexChanged.disconnect(self.getProjectInfo)
         ctrl.clear()
         username = self.ctrls[0].currentText()
         items = app.session.get_developers_tasks(username)
@@ -334,14 +356,17 @@ class ReportsRecordForm(RecordForm):
             ctrl.addItem(v, i)
             if data == i:
                 ctrl.setCurrentIndex(n)
+        ctrl.currentIndexChanged.connect(self.getProjectInfo)
         ctrl.currentIndexChanged.emit(ctrl.currentIndex())
 
+    @QtCore.pyqtSlot(int)
     def getProjectInfo(self, index):
         if app.session.is_admin:
             ctrl = self.ctrls[1]
         else:
             ctrl = self.ctrls[0]
         task_id = ctrl.itemData(index)
+        print(task_id)
         project_begin = QtCore.QDateTime.fromString(app.grant.get_project_begin_for_task(task_id)[0], QtCore.Qt.ISODate)
         bctrl = self.ctrls[-3]
         ectrl = self.ctrls[-2]

@@ -191,7 +191,7 @@ class Grant(object):
         return self.db.select('tasks as a',
             ('a.id', 'a.title'),
             joins=(('developers_distribution as b', 'a.project_id', 'b.project_id'),),
-            where="b.developer_username=?", values=(username,)).fetchall()
+            where="b.developer_username=? and a.status=\"active\"", values=(username,)).fetchall()
 
 
     def get_table(self, tablename):
@@ -324,6 +324,12 @@ class Grant(object):
     def has_distributed(self, username):
         count = self.db.select('developers_distribution', ('count(*)',), 'developer_username=?',
             values=(username,)).fetchone()
+        return count[0] != 0
+
+    def has_distributed_pkey(self, username, project_id):
+        count = self.db.select('developers_distribution', ('count(*)',),
+            'developer_username=? and project_id=?',
+            values=(username, project_id)).fetchone()
         return count[0] != 0
 
     def get_distributed_developers(self):

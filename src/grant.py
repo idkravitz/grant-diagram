@@ -71,8 +71,8 @@ class SelectDatabaseDialog(QtGui.QDialog):
         self.accepted.connect(
             lambda: app.adjust_database(self.ui.lineEdit.text()))
 
-    def open(self):
-        self.accept()
+#    def open(self):
+#        self.accept()
 
     @QtCore.pyqtSlot()
     def showDialog(self):
@@ -203,9 +203,9 @@ class GrantApplication(QtGui.QApplication):
         self.noadmins.connect(self.mainwindow.addAdminDialogOpen)
         if not self.grant.has_admins():
             self.noadmins.emit()
-        else:
+#        else:
             #self.session = self.login('admin', 'admin')
-            self.session = self.login('bob_jhonson', '1234')
+#            self.session = self.login('bob_jhonson', '1234')
 
     def add_new_admin(self, username, password, fullname, company):
         self.grant.add_first_admin(username, password, fullname, company)
