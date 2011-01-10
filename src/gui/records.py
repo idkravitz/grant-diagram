@@ -1,5 +1,5 @@
 from PyQt4 import QtGui, QtCore
-from grant_core.init_tables import Table, FieldInteger, FieldText, FieldBool,\
+from grant_core.init_tables import FieldInteger, FieldText, FieldBool,\
     FieldDate, FieldEnum
 
 class RecordForm(QtGui.QDialog):
@@ -40,7 +40,17 @@ class RecordForm(QtGui.QDialog):
             self.accepted.connect(self.addRecord)
 
     def handleAccept(self):
-        self.accept()
+        for ctrl in self.ctrls:
+            if type(ctrl) is QtGui.QDateTimeEdit:
+                dt = ctrl.dateTime()
+                if dt.date().dayOfWeek() > 5:
+                    self.error("Date '{0}' is at a weekend".format(dt.date().toString()))
+                    break
+                if not 8 <= dt.time().hour() <= 16:
+                    self.error("Time '{0}' doesn't fit at work time 8:00 - 16:00".format(dt.time().toString()))
+                    break
+        else:
+            self.accept()
 
     def error(self, text):
         mbox = QtGui.QMessageBox(
@@ -165,7 +175,7 @@ class CompaniesRecordForm(RecordForm):
         elif (not self.pkey or name != self.name) and not app.grant.check_company_name_is_free(name):
             self.error("This name is already occupied")
         else:
-            self.accept()
+            super().handleAccept()
 
 
 class DevelopersRecordForm(RecordForm):
@@ -187,7 +197,7 @@ class DevelopersRecordForm(RecordForm):
         elif not is_admin and not app.grant.has_admins(self.pkey and self.pkey[0]):
             self.error("You can't leave database without admins")
         else:
-            self.accept()
+            super().handleAccept()
 
 
 class ProjectsRecordForm(RecordForm):
@@ -200,7 +210,7 @@ class ProjectsRecordForm(RecordForm):
         elif dateend <= datebegin:
             self.error("Project end date must be greater than begin date")
         else:
-            self.accept()
+            super().handleAccept()
 
 
 class ContractsRecordForm(RecordForm):
@@ -242,8 +252,8 @@ class Developers_distributionRecordForm(RecordForm):
         ctrl = self.ctrls[0]
         ctrl.clear()
         developers = app.grant.get_available_developers(project_id)
-        for d, in developers:
-            ctrl.addItem(d, d)
+        for i, d in developers:
+            ctrl.addItem(d, i)
         if self.rec and self.rec[1] == project_id:
             for i in range(0, len(ctrl)):
                 if self.rec[0] == ctrl.itemData(i):
@@ -267,6 +277,19 @@ class TasksRecordForm(RecordForm):
         return ctrl
 
 class ReportsRecordForm(RecordForm):
+    def handleAccept(self):
+        if self.moreThanOneWorkAtSameTime():
+            self.error("You can't do more than one job at same time")
+        elif len(self.ctrls[-1].text()) == 0:
+            self.error("You can't leave an empty description")
+        else:
+            super().handleAccept()
+
+    def moreThanOneWorkAtSameTime(self):
+        values = self._get_values()
+        count = app.session.countReportsForDateTimeSice(values[2], values[3], exclude=self.pkey, username=values[0])
+        return count > 0
+
     def is_hidden(self, field):
         return super().is_hidden(field) or (field.name == 'developer_username'
             and not app.session.is_admin)
@@ -277,14 +300,38 @@ class ReportsRecordForm(RecordForm):
             values.insert(0, app.session.username)
         return values
 
+    @QtCore.pyqtSlot(int)
+    def refillTasksSelect(self, index):
+        ctrl = self.ctrls[1]
+        data = ctrl.itemData(ctrl.currentIndex())
+        ctrl.clear()
+        username = self.ctrls[0].currentText()
+        items = app.session.get_developers_tasks(username)
+        for n, (i, v) in enumerate(items):
+            ctrl.addItem(v, i)
+            if data == i:
+                ctrl.setCurrentIndex(n)
+
     def createComboBox(self, field, value):
-        if not app.session.is_admin and field.name == 'task_id':
+        if field.name == 'task_id':
             ctrl = QtGui.QComboBox(self)
-            items = app.session.get_developers_tasks()
+            if app.session.is_admin:
+                username = self.ctrls[0].currentText()
+            else:
+                username = app.session.username
+            items = app.session.get_developers_tasks(username)
             for n, (i, v) in enumerate(items):
                 ctrl.addItem(v, i)
                 if value is not None and value == i:
                     ctrl.setCurrentIndex(n)
+        elif app.session.is_admin and field.name == 'developer_username':
+            ctrl = QtGui.QComboBox(self)
+            items = app.session.get_distributed_developers()
+            for n, (i, v) in enumerate(items):
+                ctrl.addItem(v, i)
+                if value is not None and value == i:
+                    ctrl.setCurrentIndex(n)
+            ctrl.currentIndexChanged.connect(self.refillTasksSelect)
         else:
             ctrl = super().createComboBox(field, value)
         return ctrl
@@ -293,7 +340,7 @@ class ReportsRecordForm(RecordForm):
 class Tasks_dependenciesRecordForm(RecordForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.ctrls[0].currentIndexChanged.connect(self.refillDevelopers)
+        self.ctrls[0].currentIndexChanged.connect(self.refillTasks)
         self.ctrls[0].currentIndexChanged.emit(self.ctrls[0].currentIndex())
 
     def handleAccept(self):
@@ -303,7 +350,7 @@ class Tasks_dependenciesRecordForm(RecordForm):
         elif self.haveCicle():
             self.error(cicle_error)
         else:
-            self.accept()
+            super().handleAccept()
 
     def haveCicle(self):
         t, d = [c.itemData(c.currentIndex()) for c in self.ctrls]
@@ -335,7 +382,6 @@ class Tasks_dependenciesRecordForm(RecordForm):
         else:
             ctrl = QtGui.QComboBox(self)
             items = app.session.get_tasks_fk_for_manager()
-            print(items)
             for n, (i, v) in enumerate(items):
                 ctrl.addItem(v, i)
                 if value is not None and value == i:
@@ -343,7 +389,7 @@ class Tasks_dependenciesRecordForm(RecordForm):
         return ctrl
 
     @QtCore.pyqtSlot(int)
-    def refillDevelopers(self, index):
+    def refillTasks(self, index):
         task_id = self.ctrls[0].itemData(index)
         ctrl = self.ctrls[1]
         ctrl.clear()

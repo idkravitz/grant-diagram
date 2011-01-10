@@ -82,8 +82,16 @@
     <addaction name="separator"/>
     <addaction name="actionReports"/>
    </widget>
+   <widget class="QMenu" name="menuReports">
+    <property name="title">
+     <string>Reports</string>
+    </property>
+    <addaction name="actionActivities"/>
+    <addaction name="actionGantt_diagram"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTables"/>
+   <addaction name="menuReports"/>
    <addaction name="menuWindow"/>
    <addaction name="menuHelp"/>
   </widget>
@@ -169,6 +177,16 @@
   <action name="actionTasks_Dependencies">
    <property name="text">
     <string>Tasks Dependencies</string>
+   </property>
+  </action>
+  <action name="actionActivities">
+   <property name="text">
+    <string>Activities</string>
+   </property>
+  </action>
+  <action name="actionGantt_diagram">
+   <property name="text">
+    <string>Gantt diagram</string>
    </property>
   </action>
  </widget>

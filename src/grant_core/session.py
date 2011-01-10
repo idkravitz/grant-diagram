@@ -46,8 +46,11 @@ class Session(object):
     def has_distributed(self):
         return self.grant.has_distributed(self.username)
 
-    def get_developers_tasks(self):
-        return self.grant.get_developers_tasks(self.username)
+    def get_developers_tasks(self, username=None):
+        return self.grant.get_developers_tasks(username or self.username)
+
+    def get_distributed_developers(self):
+        return self.grant.get_distributed_developers()
 
     def get_tasks_projects_id(self):
         return self.grant.get_tasks_projects_id()
@@ -61,8 +64,17 @@ class Session(object):
     def get_prj_fk_for_manager(self):
         return self.grant.get_prj_fk_for_manager(self.username)
 
+    def get_available_developers(self, project_id):
+        return self.grant.get_available_developers(project_id)
+
+    def get_available_tasks_for_project(self, project_id):
+        return self.grant.get_available_tasks_for_project(project_id)
+
     def get_tasks_fk_for_manager(self):
         return self.grant.get_tasks_fk_for_manager(self.username)
+
+    def countReportsForDateTimeSice(self, begin_date, end_date, exclude=None, username=None):
+        return self.grant.countReportsForDateTimeSice(begin_date, end_date, username or self.username, exclude)
 
     def logout(self):
         self.application.session = None

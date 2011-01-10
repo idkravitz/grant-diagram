@@ -24,6 +24,8 @@ from designer.select_database_dialog import Ui_SelectDatabase
 
 import gui.records
 import gui.viewtables
+import gui.activities
+import gui.gantt
 
 CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -123,6 +125,8 @@ class MainWindow(QtGui.QMainWindow):
         self.ui.actionReports.triggered.connect(self.tableTrigger('reports'))
         self.ui.actionDevelopers_Distribution.triggered.connect(self.tableTrigger('developers_distribution'))
         self.ui.actionTasks_Dependencies.triggered.connect(self.tableTrigger('tasks_dependencies'))
+        self.ui.actionActivities.triggered.connect(self.openActivitiesReport)
+        self.ui.actionGantt_diagram.triggered.connect(self.openGantt)
         self.select_database.rejected.connect(self.close)
         self.login_dialog.login.connect(app.login)
 
@@ -145,6 +149,18 @@ class MainWindow(QtGui.QMainWindow):
         table_widget = cls(self, tablename)
         self.ui.mdiArea.addSubWindow(table_widget)
         table_widget.show()
+
+    @QtCore.pyqtSlot()
+    def openActivitiesReport(self):
+        af = gui.activities.ActivitiesForm(self)
+        self.ui.mdiArea.addSubWindow(af)
+        af.show()
+
+    @QtCore.pyqtSlot()
+    def openGantt(self):
+        gf = gui.gantt.GanttForm(self)
+        self.ui.mdiArea.addSubWindow(gf)
+        gf.show()
 
     def center(self):
         screen = QtGui.QDesktopWidget().screenGeometry()
@@ -209,5 +225,5 @@ class GrantApplication(QtGui.QApplication):
             return None
 
 app = GrantApplication(sys.argv)
-gui.records.app = gui.viewtables.app = app
+gui.activities.app = gui.records.app = gui.viewtables.app = app
 sys.exit(app.exec_())

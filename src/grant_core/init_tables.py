@@ -18,12 +18,19 @@ class Table(object):
         for f in fields:
             f.table = self
         self.tables[name] = self
+        self.dict_fields = {field.name: field for field in self.fields}
 
     def get_field(self, name):
         for f in self.fields:
             if f.name == name:
                 return f
         return None
+
+    def __getitem__(self, name):
+        return self.dict_fields[name]
+
+    def __iter__(self):
+        return self.fields.__iter__()
 
     def __str__(self):
         base = "create table {0} (\n".format(self.name)
@@ -38,7 +45,7 @@ class Field(object):
     def __init__(self, name, type, not_null=True, pk=False, fk=None, unique=False,
             hidden=False, verbose_field=None, verbose_name=None):
         self.name = name
-        self.verbose_name = verbose_name or self.name
+        self.verbose_name = verbose_name or self.constructVerboseName()
         self.type = type
         self.not_null = not_null and not pk
         self.unique = unique
@@ -56,6 +63,11 @@ class Field(object):
     def fullname(self, pseudo_name=None):
         pseudo_name = pseudo_name or self.table.name
         return pseudo_name + "." + self.name
+
+    def constructVerboseName(self):
+        name = self.name.capitalize()
+        name = name.replace('_', ' ')
+        return name
 
     @classmethod
     def convert(cls, val):
@@ -85,7 +97,6 @@ class FieldText(Field):
 class FieldDate(FieldText):
     def __init__(self, *args, **kwargs):
         super(FieldDate, self).__init__(*args, **kwargs)
-        #self.constraint = "date_{0} check ({0} > 0)".format(self.name)
 
     @classmethod
     def convert(cls, val):

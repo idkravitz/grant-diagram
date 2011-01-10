@@ -3,6 +3,7 @@ import logging
 import os, os.path
 
 from grant_core.init_tables import tables, Table
+from grant_core.CountHours import CountHours
 
 # Add logger, connect it with file handler
 
@@ -19,6 +20,7 @@ class Database(object):
         self.echo = echo
         self.connection = self._connect()
         self.connection.execute("PRAGMA foreign_keys = ON")
+        self.connection.create_aggregate('count_hours', 2, CountHours)
 
     def _connect(self):
         self._log('-- connecting {0} database'.format(self.dbname))
@@ -43,7 +45,7 @@ class Database(object):
         self.connection.execute(template.format(table, fields, mask), tuple(vals.values()))
         self.connection.commit()
 
-    def select(self, table, fields, where=None, **kwargs):
+    def select(self, table, fields, where=None, group_by=None, **kwargs):
         template = "select {1} from {0}"
         if 'joins' in kwargs:
             fromclause = ""
@@ -53,9 +55,10 @@ class Database(object):
         query = template.format(table, ",".join(fields))
 
         if where: query += " where {0}".format(where)
+        if group_by: query += " group by {0}".format(",".join(group_by))
         self._log(query)
         cursor = self.connection.cursor()
-        if 'values' in kwargs:
+        if 'values' in kwargs and len(kwargs['values']):
             cursor.execute(query, kwargs['values'])
         else:
             cursor.execute(query)
@@ -134,12 +137,12 @@ class Grant(object):
         return self.db.select('tasks_dependencies as b', ('a.project_id',), joins=(("tasks as a", "b.task_id", "a.id"),)).fetchall()
 
     def update_record(self, tablename, values, pk):
-        fields = [f.name for f in Table.tables[tablename].fields if not (f.hidden and f.pk)]
+        fields = [f.name for f in Table.tables[tablename] if not (f.hidden and f.pk)]
         pkey = [p.name for p in Table.tables[tablename].pk]
         return self.db.update(tablename, fields, values, pkey, pk)
 
     def add_record(self, tablename, values):
-        fields = [f.name for f in Table.tables[tablename].fields if not (f.hidden and f.pk)]
+        fields = [f.name for f in Table.tables[tablename] if not (f.hidden and f.pk)]
         pairs = dict(zip(fields, values))
         return self.db.insert(tablename, **pairs)
 
@@ -149,13 +152,15 @@ class Grant(object):
 
     def get_available_developers(self, project_id):
         where = 'company_id in (select company_id from contracts where status="active" and project_id=?) or company_id=1'
-        return self.db.select('developers', ('username',), where, values=(project_id,)).fetchall()
+        return self.db.select('developers', ('username', 'username'), where, values=(project_id,)).fetchall()
 
     def get_available_tasks(self, task_id):
         project_id, = self.db.select('tasks', ('project_id',), 'id=?',
             values=(task_id,)).fetchone()
-        return self.db.select('tasks', ('id', 'title'), 'project_id=?',
-            values=(project_id,)).fetchall()
+        return self.get_available_tasks_for_project(project_id)
+
+    def get_available_tasks_for_project(self, project_id):
+        return self.db.select('tasks', ('id', 'title'), 'project_id=?', values=(project_id,)).fetchall()
 
     def get_available_tasks_dependencies(self, task_id):
         project_id, = self.db.select('tasks', ('project_id',), 'id=?',
@@ -204,6 +209,15 @@ class Grant(object):
     def get_companies(self):
         return self.db.select('companies', ('*',)).fetchall()
 
+    def countReportsForDateTimeSice(self, begin_date, end_date, username, exclude):
+        where = "developer_username = ?3 and ((end_date <= ?2 and end_date > ?1) or (begin_date >= ?1 and begin_date < ?2) or \
+(begin_date <= ?1 and end_date >= ?2))"
+        values = (begin_date, end_date, username)
+        if exclude is not None:
+            where += " and id <> ?"
+            values = values + exclude
+        return self.db.select('reports', ('count(*)',), where=where, values=values).fetchone()[0]
+
     def check_company_name_is_free(self, name):
         count = self.db.select('companies', ('count(*)',), 'name=?', values=(name,)).fetchone()
         return not count[0]
@@ -241,7 +255,35 @@ class Grant(object):
         companies_count = self.db.select('companies', ('count(*)',))
         return companies_count.fetchone()[0]
 
+    def get_activities_report(self, project_id=None, developer_username=None, task_id=None):
+        where = []
+        values = []
+        if project_id is not None:
+            where.append('c.id=?')
+            values.append(project_id)
+        if developer_username is not None:
+            where.append('a.developer_username=?')
+            values.append(developer_username)
+        if task_id is not None:
+            where.append('a.task_id=?')
+            values.append(task_id)
+        if len(where) == 0:
+            where = None
+        else:
+            where = " and ".join(where)
+        joins = ('tasks as b', 'a.task_id', 'b.id'), ('projects as c', 'b.project_id', 'c.id')
+        return self.db.select('reports as a',
+            ('c.name', 'a.developer_username', 'b.title', 'count_hours(a.begin_date, a.end_date)'),
+            where=where,
+            joins=joins,
+            values=values,
+            group_by=('b.project_id', 'a.developer_username', 'a.task_id')).fetchall()
+
     def has_distributed(self, username):
         count = self.db.select('developers_distribution', ('count(*)',), 'developer_username=?',
             values=(username,)).fetchone()
         return count[0] != 0
+
+    def get_distributed_developers(self):
+        return self.db.select('developers_distribution', ('developer_username', 'developer_username'),
+            group_by=('developer_username',)).fetchall()

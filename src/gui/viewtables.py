@@ -23,10 +23,9 @@ class ViewTableForm(QtGui.QWidget):
         ui.deleteRecord.triggered.connect(self.deleteActionTriggered)
         for action in [ui.addRecord, ui.editRecord, ui.deleteRecord]:
             ui.toolbar.addAction(action)
-        if app.session.is_admin:
-            ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
-            ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
-        else:
+        ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
+        ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
+        if not app.session.is_admin:
             ui.addRecord.setDisabled(True)
         self.tablename = tablename
         self.RecordClass = globals()[tablename.capitalize() + "RecordForm"]
@@ -37,7 +36,7 @@ class ViewTableForm(QtGui.QWidget):
 
     @QtCore.pyqtSlot()
     def adjust_actions(self):
-        val = len(self.ui.tableWidget.selectedItems()) == 0
+        val = not app.session.is_admin or len(self.ui.tableWidget.selectedItems()) == 0
         self.ui.editRecord.setDisabled(val)
         self.ui.deleteRecord.setDisabled(val)
 
@@ -85,10 +84,19 @@ class ViewTableForm(QtGui.QWidget):
                 item.setTextAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
                 self.ui.tableWidget.setItem(i, j, item)
 
+        self.adjustColumnsWidth()
         self.postUpdateActions()
+
+    def adjustColumnsWidth(self):
+        tw = self.ui.tableWidget
+        tw.resizeColumnsToContents()
 
     @QtCore.pyqtSlot(int, int)
     def editRecord(self, row, col):
+        if app.session.is_admin:
+            self._spawnEditDialog(row)
+
+    def _spawnEditDialog(self, row):
         rec = self.RecordClass(self, self.tablename, self.pkeys[row])
         rec.open()
 
@@ -112,7 +120,7 @@ class CompaniesViewTableForm(ViewTableForm):
         if self.pkeys[row][0] == 1:
             self.error("Cann't delete your company")
         else:
-            super(CompaniesViewTableForm, self).deleteActionTriggered()
+            super().deleteActionTriggered()
 
 class DevelopersDistributionTableForm(ViewTableForm):
     def postUpdateActions(self):
@@ -122,15 +130,11 @@ class DevelopersDistributionTableForm(ViewTableForm):
             if len(self.managed_prjs):
                 self.managed_prjs = set(p for p, in self.managed_prjs)
                 self.ui.addRecord.setDisabled(False)
-                self.ui.tableWidget.cellDoubleClicked.disconnect(self.editRecord)
-                self.ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
-                self.ui.tableWidget.itemSelectionChanged.disconnect(self.adjust_actions)
-                self.ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
 
     @QtCore.pyqtSlot(int, int)
     def editRecord(self, row, col):
         if self.bypass or self.pkeys[row][1] in self.managed_prjs:
-            super().editRecord(row, col)
+            self._spawnEditDialog(row)
 
     @QtCore.pyqtSlot()
     def adjust_actions(self):
@@ -150,15 +154,11 @@ class TasksTableForm(ViewTableForm):
                 self.projects_id = [p for p, in app.session.get_tasks_projects_id()]
                 self.managed_prjs = set(p for p, in self.managed_prjs)
                 self.ui.addRecord.setDisabled(False)
-                self.ui.tableWidget.cellDoubleClicked.disconnect(self.editRecord)
-                self.ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
-                self.ui.tableWidget.itemSelectionChanged.disconnect(self.adjust_actions)
-                self.ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
 
     @QtCore.pyqtSlot(int, int)
     def editRecord(self, row, col):
         if self.bypass or (self.projects_id and self.projects_id[row] in self.managed_prjs):
-            super().editRecord(row, col)
+            self._spawnEditDialog(row)
 
     @QtCore.pyqtSlot()
     def adjust_actions(self):
@@ -178,15 +178,11 @@ class TasksDependenciesForm(ViewTableForm):
                 self.projects_id = [p for p, in app.session.get_tasks_dependencies_projects_id()]
                 self.managed_prjs = set(p for p, in self.managed_prjs)
                 self.ui.addRecord.setDisabled(False)
-                self.ui.tableWidget.cellDoubleClicked.disconnect(self.editRecord)
-                self.ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
-                self.ui.tableWidget.itemSelectionChanged.disconnect(self.adjust_actions)
-                self.ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
 
     @QtCore.pyqtSlot(int, int)
     def editRecord(self, row, col):
         if self.bypass or (self.projects_id and self.projects_id[row] in self.managed_prjs):
-            super().editRecord(row, col)
+            self._spawnEditDialog(row)
 
     @QtCore.pyqtSlot()
     def adjust_actions(self):
@@ -201,15 +197,11 @@ class ReportsForm(ViewTableForm):
         self.bypass = app.session.is_admin
         if app.session.has_distributed():
             self.ui.addRecord.setDisabled(False)
-            self.ui.tableWidget.cellDoubleClicked.disconnect(self.editRecord)
-            self.ui.tableWidget.cellDoubleClicked.connect(self.editRecord)
-            self.ui.tableWidget.itemSelectionChanged.disconnect(self.adjust_actions)
-            self.ui.tableWidget.itemSelectionChanged.connect(self.adjust_actions)
 
     @QtCore.pyqtSlot(int, int)
     def editRecord(self, row, col):
         if self.bypass or self.ui.tableWidget.item(row, 0).text() == app.session.username:
-            super().editRecord(row, col)
+            self._spawnEditDialog(row)
 
     @QtCore.pyqtSlot()
     def adjust_actions(self):
