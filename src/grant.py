@@ -26,6 +26,7 @@ import gui.records
 import gui.viewtables
 import gui.activities
 import gui.gantt
+import gui.ganttgenerator
 
 CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -64,11 +65,14 @@ class SelectDatabaseDialog(QtGui.QDialog):
         self.ui = Ui_SelectDatabase()
         self.ui.setupUi(self)
         self.ui.lineEdit.setText(
-            os.path.join(CURRENT_PATH, 'new_database.db'))
+            os.path.join(CURRENT_PATH, 'examples.db'))
 
         self.ui.pushButton.clicked.connect(self.showDialog)
         self.accepted.connect(
             lambda: app.adjust_database(self.ui.lineEdit.text()))
+
+    def open(self):
+        self.accept()
 
     @QtCore.pyqtSlot()
     def showDialog(self):
@@ -134,7 +138,6 @@ class MainWindow(QtGui.QMainWindow):
         self.statusBar().addPermanentWidget(self.statusBarText)
         self.showStatusMessage('Not logged in')
 
-        self.select_database.open()
         self.set_actions()
 
     def createTableView(self, tablename):
@@ -143,7 +146,8 @@ class MainWindow(QtGui.QMainWindow):
             'developers_distribution': gui.viewtables.DevelopersDistributionTableForm,
             'tasks': gui.viewtables.TasksTableForm,
             'tasks_dependencies': gui.viewtables.TasksDependenciesForm,
-            'reports': gui.viewtables.ReportsForm}
+            'reports': gui.viewtables.ReportsForm,
+            'contracts': gui.viewtables.ContractsViewTableForm}
         if tablename in clsmaps:
             cls = clsmaps[tablename]
         table_widget = cls(self, tablename)
@@ -174,12 +178,12 @@ class MainWindow(QtGui.QMainWindow):
 
     def set_actions(self, disabled=True):
         ui = self.ui
-        actions = [
-            ui.actionCompanies,
-            ui.actionDevelopers
+        menus = [
+            ui.menuTables,
+            ui.menuReports
         ]
-        for action in actions:
-            action.setDisabled(disabled)
+        for menu in menus:
+            menu.setDisabled(disabled)
 
     def showStatusMessage(self, text):
         self.statusBarText.setText(text)
@@ -191,6 +195,7 @@ class GrantApplication(QtGui.QApplication):
     def exec_(self):
         self.mainwindow = MainWindow()
         self.mainwindow.showNormal()
+        self.mainwindow.select_database.open()
         super().exec_()
 
     def adjust_database(self, filename):
@@ -199,7 +204,8 @@ class GrantApplication(QtGui.QApplication):
         if not self.grant.has_admins():
             self.noadmins.emit()
         else:
-            self.session = self.login('admin', 'admin')
+            #self.session = self.login('admin', 'admin')
+            self.session = self.login('bob_jhonson', '1234')
 
     def add_new_admin(self, username, password, fullname, company):
         self.grant.add_first_admin(username, password, fullname, company)
@@ -225,5 +231,5 @@ class GrantApplication(QtGui.QApplication):
             return None
 
 app = GrantApplication(sys.argv)
-gui.activities.app = gui.records.app = gui.viewtables.app = app
+gui.ganttgenerator.app = gui.gantt.app = gui.activities.app = gui.records.app = gui.viewtables.app = app
 sys.exit(app.exec_())

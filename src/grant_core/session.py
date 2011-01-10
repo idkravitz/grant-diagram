@@ -61,6 +61,9 @@ class Session(object):
     def get_managed_projects(self):
         return self.grant.get_managed_projects(self.username)
 
+    def get_distributed_to(self):
+        return self.grant.get_distributed_to(self.username)
+
     def get_prj_fk_for_manager(self):
         return self.grant.get_prj_fk_for_manager(self.username)
 
@@ -69,6 +72,9 @@ class Session(object):
 
     def get_available_tasks_for_project(self, project_id):
         return self.grant.get_available_tasks_for_project(project_id)
+
+    def get_tasks_for_gantt(self, project_id):
+        return self.grant.get_tasks_for_gantt(project_id)
 
     def get_tasks_fk_for_manager(self):
         return self.grant.get_tasks_fk_for_manager(self.username)

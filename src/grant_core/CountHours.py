@@ -4,7 +4,8 @@ class CountHours(object):
     def __init__(self):
         self.hours = 0
 
-    def step(self, begin, end):
+    @classmethod
+    def hoursBetween(cls, begin, end):
         b = QtCore.QDateTime.fromString(begin, QtCore.Qt.ISODate)
         e = QtCore.QDateTime.fromString(end, QtCore.Qt.ISODate)
 
@@ -17,7 +18,10 @@ class CountHours(object):
 
         # hours from not full days, working time is 8:00 - 16:00
         additional = (16 - b.time().hour()) + (e.time().hour() - 8)
-        self.hours += days * 8 + additional
+        return days * 8 + additional
+
+    def step(self, begin, end):
+        self.hours += self.hoursBetween(begin, end)
 
     def finalize(self):
         return self.hours

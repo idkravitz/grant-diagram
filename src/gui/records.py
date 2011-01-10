@@ -181,9 +181,6 @@ class CompaniesRecordForm(RecordForm):
 class DevelopersRecordForm(RecordForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not app.grant.has_companies(): # bug here
-            self.error("There must be at least one project before you can do this")
-            self.close()
 
     def handleAccept(self):
         fname = self.ctrls[0].text()
@@ -262,10 +259,22 @@ class Developers_distributionRecordForm(RecordForm):
 
 
 class TasksRecordForm(RecordForm):
+    def handleAccept(self):
+        if self.is_not_manager and self.ctrls[-1].currentText() == 'delayed':
+            self.error("You can\'t mark task as delayed")
+        else:
+            super().handleAccept()
+
+    def __init__(self, parent, tablename, pkey=None, is_not_manager=False):
+        self.is_not_manager = is_not_manager
+        super().__init__(parent, tablename, pkey)
+        if self.is_not_manager:
+            for ctrl in self.ctrls[:-1]:
+                ctrl.setDisabled(True)
     # TODO:
     # Do lots of checks
     def createComboBox(self, field, value):
-        if app.session.is_admin:
+        if app.session.is_admin or self.is_not_manager:
             ctrl = super().createComboBox(field, value)
         else:
             ctrl = QtGui.QComboBox(self)
@@ -280,10 +289,24 @@ class ReportsRecordForm(RecordForm):
     def handleAccept(self):
         if self.moreThanOneWorkAtSameTime():
             self.error("You can't do more than one job at same time")
+        elif self.unfinishedDependencies():
+            self.error("You can't work on task with unfinished dependencies")
         elif len(self.ctrls[-1].text()) == 0:
             self.error("You can't leave an empty description")
         else:
             super().handleAccept()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ctrls[-4].currentIndexChanged.emit(self.ctrls[-4].currentIndex())
+
+    def unfinishedDependencies(self):
+        i = 0
+        if app.session.is_admin:
+            i = 1
+        task_id = self.ctrls[i].itemData(self.ctrls[i].currentIndex())
+        return app.grant.has_unfinished_dependencies(task_id)
+
 
     def moreThanOneWorkAtSameTime(self):
         values = self._get_values()
@@ -311,6 +334,20 @@ class ReportsRecordForm(RecordForm):
             ctrl.addItem(v, i)
             if data == i:
                 ctrl.setCurrentIndex(n)
+        ctrl.currentIndexChanged.emit(ctrl.currentIndex())
+
+    def getProjectInfo(self, index):
+        if app.session.is_admin:
+            ctrl = self.ctrls[1]
+        else:
+            ctrl = self.ctrls[0]
+        task_id = ctrl.itemData(index)
+        project_begin = QtCore.QDateTime.fromString(app.grant.get_project_begin_for_task(task_id)[0], QtCore.Qt.ISODate)
+        bctrl = self.ctrls[-3]
+        ectrl = self.ctrls[-2]
+        for ctrl in (bctrl, ectrl):
+            ctrl.setMinimumDateTime(project_begin)
+
 
     def createComboBox(self, field, value):
         if field.name == 'task_id':
@@ -324,6 +361,7 @@ class ReportsRecordForm(RecordForm):
                 ctrl.addItem(v, i)
                 if value is not None and value == i:
                     ctrl.setCurrentIndex(n)
+            ctrl.currentIndexChanged.connect(self.getProjectInfo)
         elif app.session.is_admin and field.name == 'developer_username':
             ctrl = QtGui.QComboBox(self)
             items = app.session.get_distributed_developers()

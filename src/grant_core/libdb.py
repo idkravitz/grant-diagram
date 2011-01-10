@@ -136,6 +136,16 @@ class Grant(object):
     def get_tasks_dependencies_projects_id(self):
         return self.db.select('tasks_dependencies as b', ('a.project_id',), joins=(("tasks as a", "b.task_id", "a.id"),)).fetchall()
 
+    def get_tasks_for_gantt(self, project_id):
+        return self.db.select('tasks', ('id','title','hours','status'), 'project_id=?', values=(project_id,)).fetchall()
+
+    def get_project_info_for_gantt(self, project_id):
+        return self.db.select('projects', ('begin_date', 'end_date'), 'id=?', values=(project_id,)).fetchone()
+
+    def get_project_begin_for_task(self, task_id):
+        return self.db.select('tasks as a', ('b.begin_date',), joins=(('projects as b', 'a.project_id', 'b.id'),),
+            where='a.id=?', values=(task_id,)).fetchone()
+
     def update_record(self, tablename, values, pk):
         fields = [f.name for f in Table.tables[tablename] if not (f.hidden and f.pk)]
         pkey = [p.name for p in Table.tables[tablename].pk]
@@ -161,6 +171,13 @@ class Grant(object):
 
     def get_available_tasks_for_project(self, project_id):
         return self.db.select('tasks', ('id', 'title'), 'project_id=?', values=(project_id,)).fetchall()
+
+    def get_activities_for_gantt(self, project_id):
+        joins = (('tasks as b', 'a.task_id', 'b.id'),)
+        return self.db.select('reports as a', ('a.task_id', 'min(a.begin_date)', 'max(a.end_date)'),
+            joins=joins,
+            group_by=('a.task_id',),
+            where='b.project_id=?', values=(project_id,)).fetchall()
 
     def get_available_tasks_dependencies(self, task_id):
         project_id, = self.db.select('tasks', ('project_id',), 'id=?',
@@ -254,6 +271,31 @@ class Grant(object):
     def has_companies(self):
         companies_count = self.db.select('companies', ('count(*)',))
         return companies_count.fetchone()[0]
+
+    def has_projects(self):
+        count = self.db.select('projects', ('count(*)',))
+        return count.fetchone()[0] != 0
+
+    def has_developers(self):
+        count = self.db.select('developers', ('count(*)',))
+        return count.fetchone()[0] != 0
+
+    def has_distributed_developers(self):
+        count = self.db.select('developers_distribution', ('count(*)',))
+        return count.fetchone()[0] != 0
+
+    def has_unfinished_dependencies(self, task_id):
+        count = self.db.select('tasks_dependencies as a', ('count(*)',),
+            joins=(('tasks as b', 'a.depended_task_id', 'b.id'),), where='a.task_id=? and b.status!="finished"', values=(task_id,))
+        return count.fetchone()[0] != 0
+
+    def get_distributed_to(self, username):
+        q = self.db.select('developers_distribution', ('project_id',), 'developer_username=?', values=(username,))
+        return q.fetchall()
+
+    def has_tasks(self):
+        count = self.db.select('tasks', ('count(*)',))
+        return count.fetchone()[0] != 0
 
     def get_activities_report(self, project_id=None, developer_username=None, task_id=None):
         where = []

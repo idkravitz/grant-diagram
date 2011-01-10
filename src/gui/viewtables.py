@@ -96,8 +96,8 @@ class ViewTableForm(QtGui.QWidget):
         if app.session.is_admin:
             self._spawnEditDialog(row)
 
-    def _spawnEditDialog(self, row):
-        rec = self.RecordClass(self, self.tablename, self.pkeys[row])
+    def _spawnEditDialog(self, row, *args, **kwargs):
+        rec = self.RecordClass(self, self.tablename, self.pkeys[row], *args, **kwargs)
         rec.open()
 
     def addRecord(self):
@@ -122,6 +122,21 @@ class CompaniesViewTableForm(ViewTableForm):
         else:
             super().deleteActionTriggered()
 
+class ContractsViewTableForm(ViewTableForm):
+    @QtCore.pyqtSlot(int, int)
+    def editRecord(self, row, col):
+        if not app.grant.has_projects():
+            self.error('You have no projects')
+        else:
+            super().editRecord(row, col)
+
+    def addRecord(self):
+        if not app.grant.has_projects():
+            self.error('You have no projects')
+        else:
+            super().addRecord()
+
+
 class DevelopersDistributionTableForm(ViewTableForm):
     def postUpdateActions(self):
         self.bypass = app.session.is_admin
@@ -133,8 +148,20 @@ class DevelopersDistributionTableForm(ViewTableForm):
 
     @QtCore.pyqtSlot(int, int)
     def editRecord(self, row, col):
-        if self.bypass or self.pkeys[row][1] in self.managed_prjs:
+        if not app.grant.has_projects():
+            self.error('You have no projects')
+        elif not app.grant.has_developers():
+            self.error('You have no developers')
+        elif self.bypass or self.pkeys[row][1] in self.managed_prjs:
             self._spawnEditDialog(row)
+
+    def addRecord(self):
+        if not app.grant.has_projects():
+            self.error('You have no projects')
+        elif not app.grant.has_developers():
+            self.error('You have no developers')
+        else:
+            super().addRecord()
 
     @QtCore.pyqtSlot()
     def adjust_actions(self):
@@ -149,24 +176,38 @@ class TasksTableForm(ViewTableForm):
         self.bypass = app.session.is_admin
         self.projects_id = None
         if not self.bypass:
-            self.managed_prjs = app.session.get_managed_projects()
+            self.projects_id = [p for p, in app.session.get_tasks_projects_id()]
+            self.managed_prjs = app.session.get_managed_projects() or ()
+            self.distributed_to = app.session.get_distributed_to() or ()
+            self.distributed_to = set(p for p, in self.distributed_to)
             if len(self.managed_prjs):
-                self.projects_id = [p for p, in app.session.get_tasks_projects_id()]
                 self.managed_prjs = set(p for p, in self.managed_prjs)
                 self.ui.addRecord.setDisabled(False)
 
     @QtCore.pyqtSlot(int, int)
     def editRecord(self, row, col):
-        if self.bypass or (self.projects_id and self.projects_id[row] in self.managed_prjs):
-            self._spawnEditDialog(row)
+        if not app.grant.has_projects():
+            self.error('You have no projects')
+        elif self.bypass or (self.projects_id and (self.projects_id[row] in self.managed_prjs or
+            (self.projects_id[row] in self.distributed_to and
+                self.ui.tableWidget.item(row, self.ui.tableWidget.columnCount() - 1).text() == 'active'))):
+            self._spawnEditDialog(row, is_not_manager= not (self.bypass or (self.projects_id and (self.projects_id[row] in self.managed_prjs))))
+
+    def addRecord(self):
+        if not app.grant.has_projects():
+            self.error('You have no projects')
+        else:
+            super().addRecord()
 
     @QtCore.pyqtSlot()
     def adjust_actions(self):
         row = self.ui.tableWidget.currentRow()
         val = len(self.ui.tableWidget.selectedItems()) == 0
-        val = val and (self.bypass or (self.projects_id and self.projects_id[row] in self.managed_prjs))
-        self.ui.editRecord.setDisabled(val)
-        self.ui.deleteRecord.setDisabled(val)
+        val1 = not val and (self.bypass or (self.projects_id and self.projects_id[row] in self.managed_prjs))
+        val2 = not val and (self.bypass or (self.projects_id and self.projects_id[row] in self.distributed_to and
+            self.ui.tableWidget.item(row, self.ui.tableWidget.columnCount() - 1).text() == 'active'))
+        self.ui.editRecord.setDisabled(not (val2 or val1))
+        self.ui.deleteRecord.setDisabled(not val1)
 
 class TasksDependenciesForm(ViewTableForm):
     def postUpdateActions(self):
@@ -181,8 +222,16 @@ class TasksDependenciesForm(ViewTableForm):
 
     @QtCore.pyqtSlot(int, int)
     def editRecord(self, row, col):
-        if self.bypass or (self.projects_id and self.projects_id[row] in self.managed_prjs):
+        if not app.grant.has_tasks():
+            self.error('You have no tasks')
+        elif self.bypass or (self.projects_id and self.projects_id[row] in self.managed_prjs):
             self._spawnEditDialog(row)
+
+    def addRecord(self):
+        if not app.grant.has_tasks():
+            self.error('You have no tasks')
+        else:
+            super().addRecord()
 
     @QtCore.pyqtSlot()
     def adjust_actions(self):
@@ -200,7 +249,11 @@ class ReportsForm(ViewTableForm):
 
     @QtCore.pyqtSlot(int, int)
     def editRecord(self, row, col):
-        if self.bypass or self.ui.tableWidget.item(row, 0).text() == app.session.username:
+        if not app.grant.has_tasks():
+            self.error('You have no tasks')
+        elif not app.grant.has_distributed_developers():
+            self.error('You have no distributed developers')
+        elif self.bypass or self.ui.tableWidget.item(row, 0).text() == app.session.username:
             self._spawnEditDialog(row)
 
     @QtCore.pyqtSlot()
